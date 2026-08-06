@@ -8,12 +8,23 @@ versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `references/layout-adaptivity-contract.md` — Layout & Adaptivity becomes the sixth area of the
+  UI convention contract: reference canvas, permitted scaling API, supported devices, forbidden
+  patterns, baseline rules LAY-01…LAY-11 and a failure catalog (FAIL-01…FAIL-04).
+- Layout policy gates: stage 3 blocks on the LAY-01…LAY-10 detections, stage 5 requires at least
+  one non-reference size per screen, stage 6 requires the smallest supported device plus devices
+  with and without a home indicator, stage 8 re-runs the detections.
+- `Layout policy checks` table and a `Layout` contract row in the pipeline manifest template
+  (`pipeline_schema_version: 8`).
 - `check.sh` — local check runner: validator tests on every installed Python 3 (including
   `/usr/bin/python3` 3.9 from the Xcode Command Line Tools), skill lint, shell syntax.
 - `tools/pre-push` — optional git hook that runs `check.sh` before a push.
 
 ### Changed
 
+- The preflight audit now resolves six areas instead of five; stages 1–8 stay blocked until all six
+  contract rows are filled. Documentation outranks code precedent: a pattern the project's docs mark
+  legacy cannot be repeated because neighbouring screens use it.
 - Both skills are now written in English — `SKILL.md`, references, adapters and templates. The
   Russian trigger phrases stay in each `description`, and generated project documents follow the
   user's language while machine-read structure stays English.

@@ -11,11 +11,11 @@ Search in this order; do not read vendor or generated directories unless necessa
 3. Documentation of the modules and packages that own localization, typography, colors, assets or accessibility.
 4. If documentation is silent, confirm the actual convention from existing `*.xcstrings`, `*.strings`, design-system APIs, `Assets.xcassets`, generated accessors and representative call sites. That is evidence, not a documented rule; the status is `inferred-from-code`. Exception: code and Figma without documentation never activate Accessibility scope.
 
-Search by terms as well as by section names: `String Catalog`, `xcstrings`, `Localizable`, `stringsdict`, `localized`, `table`, `bundle`, `SWIFT_EMIT_LOC_STRINGS`, `STRING_CATALOG_GENERATE_SYMBOLS`, `generated symbols`, `source language`, `translation`, `copy`, `Typography`, `Font`, `Dynamic Type`, `Color`, `palette`, `token`, `Assets.xcassets`, `Image`, `imageset`, `namespace`, `rendering intent`, `Accessibility`, `VoiceOver`, `Reduce Motion`, `contrast`, `accessibilityLabel`, `accessibilityIdentifier`.
+Search by terms as well as by section names: `layout`, `adaptive`, `GeometryReader`, `safe area`, `reference canvas`, `artboard`, `designWidth`, `designHeight`, `scaleEffect`, `padding`, `spacing`, `deployment target`, supported devices and orientations, `String Catalog`, `xcstrings`, `Localizable`, `stringsdict`, `localized`, `table`, `bundle`, `SWIFT_EMIT_LOC_STRINGS`, `STRING_CATALOG_GENERATE_SYMBOLS`, `generated symbols`, `source language`, `translation`, `copy`, `Typography`, `Font`, `Dynamic Type`, `Color`, `palette`, `token`, `Assets.xcassets`, `Image`, `imageset`, `namespace`, `rendering intent`, `Accessibility`, `VoiceOver`, `Reduce Motion`, `contrast`, `accessibilityLabel`, `accessibilityIdentifier`.
 
 Record the path and the specific section or symbol of every source. "That's how it's done here" without evidence is not a found rule.
 
-## 2. Map the five areas
+## 2. Map the six areas
 
 For each area, record in the manifest: project sources, the project's rule in brief, the skill's baseline, the resolved decision and the status.
 
@@ -27,6 +27,13 @@ Permitted statuses:
 - `inferred-from-code` — no applicable documentation for the whole area, but existing practice is unambiguous;
 - `conflict` — the rules cannot both be satisfied; an answer is required;
 - `not-applicable` — the area is objectively untouched, with the reason recorded.
+
+### Layout baseline
+
+- Read [`layout-adaptivity-contract.md`](layout-adaptivity-contract.md) in full and resolve the row from it: reference canvas, permitted design-to-runtime scaling API, smallest and largest supported device, supported orientations, and the layout patterns the project forbids.
+- Documented layout rules outrank precedent in existing screens. A pattern that documentation marks legacy or forbids for new screens must not be copied, even when neighbouring screens use it; only genuinely ambiguous wording becomes a `conflict`.
+- The skill baseline is rules LAY-01…LAY-11: no fixed reference canvas with a global `scaleEffect`, no hard or derived screen-level frame sizes, no `position`/static `offset` as layout, positioning through `alignment` and spacing through `padding`, insets snapped to system values within an asymmetric −2…+4pt tolerance, the documented screen-container modifier order, and geometry arithmetic only with a written derivation.
+- A project rule may make the baseline more specific (its own scaling API, its own spacing scale); it may not reintroduce a pattern the baseline forbids without an explicit documented decision recorded in the manifest.
 
 ### Strings baseline
 
@@ -73,10 +80,11 @@ Permitted statuses:
 
 1. Follow higher-priority instructions and applicable project instructions.
 2. For naming, API, file format and placement, prefer the more specific project convention over the skill's generic default.
+2a. Documentation outranks code precedent. Existing call sites are evidence of practice, never permission to repeat a pattern documentation marks legacy or forbidden; `inferred-from-code` applies only where documentation is silent for the whole area.
 3. Apply the skill's safety, integrity and validation guardrails in addition; project silence does not waive them. Accessibility is the explicit scope exception: silence means the `no-add` baseline.
 4. If project documentation contradicts itself or demands breaking a mandatory guardrail, set `conflict`, list both sources in one question, and stop before the first affected stage.
 5. Once resolved, record the outcome in the manifest so that a worker or subagent receives an already-resolved contract instead of choosing a convention on its own.
 
 ## 4. Resume and stale
 
-Record the base SHA and `checked_at`. For Strings, additionally store `STRINGS_BASE_SHA`, the compact inventory summary and the feature keys. On resume, check the listed sources and the actual mechanisms for changes: do not rescan what is unchanged; changed Strings documentation → re-resolve the contract; changed catalogs or settings → inventory + lookup for feature keys only. A change in Strings/Typography/Colors/Accessibility marks the corresponding rows of stages 3/5/6 `stale`; a change in Images marks the corresponding stage 2 assets and the stage 5 visual comparison `stale`.
+Record the base SHA and `checked_at`. For Strings, additionally store `STRINGS_BASE_SHA`, the compact inventory summary and the feature keys. On resume, check the listed sources and the actual mechanisms for changes: do not rescan what is unchanged; changed Strings documentation → re-resolve the contract; changed catalogs or settings → inventory + lookup for feature keys only. A change in Strings/Typography/Colors/Accessibility marks the corresponding rows of stages 3/5/6 `stale`; a change in Images marks the corresponding stage 2 assets and the stage 5 visual comparison `stale`. A change in Layout documentation, the reference canvas, the supported device set or the scaling API marks the affected screens of stages 3/5/6 `stale`.

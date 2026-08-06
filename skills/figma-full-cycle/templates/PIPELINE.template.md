@@ -1,7 +1,7 @@
 # <FEATURE> — Pipeline manifest
 
 > The full cycle's source of truth. Only the main thread of the `figma-full-cycle` skill writes here.
-> pipeline_schema_version: 7
+> pipeline_schema_version: 8
 > run_id: <RUN_ID> <!-- date+slug; new on a fresh start, preserved across resume -->
 > Figma: <FIGMA_URL>
 > Figma pin: fileKey=<KEY> node=<NODE> version=<VERSION_OR_HASH> checked_at=<TS>
@@ -20,13 +20,14 @@
 
 | Area | Project sources (path + section/symbol) | Project rule | Skill baseline | Resolved decision | Status |
 |------|------------------------------------------|--------------|----------------|-------------------|--------|
+| Layout | | | `references/layout-adaptivity-contract.md` (LAY-01…LAY-11) | `<reference canvas; scaling API; smallest/largest device; orientations; patterns the project forbids>` | `todo` |
 | Strings | | | `references/project-ui-conventions.md#strings-baseline` | | `todo` |
 | Typography | | | `references/project-ui-conventions.md#typography-baseline` | | `todo` |
 | Colors | | | `references/project-ui-conventions.md#colors-baseline` | | `todo` |
 | Images | | | `import-figma-assets` + `references/project-ui-conventions.md#images-baseline` | | `todo` |
 | Accessibility | | | `references/project-ui-conventions.md#accessibility-baseline` | `no-add` unless documentation or the user explicitly requires otherwise | `todo` |
 
-Statuses: `matched / project-specific / skill-fallback / inferred-from-code / conflict / not-applicable`. Stages 1–8 do not start while a row is `todo` or while an open `conflict` affects the stage. For Accessibility, no explicit requirement → `skill-fallback` with the decision `no-add`; `inferred-from-code` never activates scope.
+Statuses: `matched / project-specific / skill-fallback / inferred-from-code / conflict / not-applicable`. Stages 1–8 do not start while a row is `todo` or while an open `conflict` affects the stage. For Layout, documentation outranks precedent in existing screens: a pattern documentation marks legacy is not repeatable, and `inferred-from-code` applies only when there is no layout documentation at all. For Accessibility, no explicit requirement → `skill-fallback` with the decision `no-add`; `inferred-from-code` never activates scope.
 
 ## Figma MCP acquisition (preflight + stage 1)
 
@@ -140,9 +141,26 @@ The commit subject in the table is the **actual** one from git; one stage = one 
 |--------|------|--------------------|----------------|-----------------------------|
 | | | `todo` | `todo` | |
 
+## Layout policy checks (stages 3 and 8)
+
+> One row per detection from `references/layout-adaptivity-contract.md`, run over the feature's changed files. A hit is a stage 3 blocker, not a stage 5 remark. `waived` requires a reason and the user's decision.
+
+| Rule | Detection | Result (hits / clean) | Status |
+|------|-----------|-----------------------|--------|
+| LAY-01 fixed canvas + `scaleEffect` | `.frame(width:` with the reference size next to `.scaleEffect(` | | `todo` |
+| LAY-02 hard frame on `Color`/shape | `Color`/`Rectangle`/`RoundedRectangle` + numeric `.frame(width:`/`height:` | | `todo` |
+| LAY-03 hard/derived screen-level size | arithmetic inside `.frame(width:`/`height:`; numeric `width:` ≥ 300 | | `todo` |
+| LAY-04 `position`/static `offset` as layout | any `.position(`; `.offset(` outside animation | | `todo` |
+| LAY-07 inset snap (−2…+4pt tolerance) | inset literals in the 14–20 range | | `todo` |
+| LAY-08 container modifier order | `.background(` before `.frame(maxWidth: .infinity`; `.ignoresSafeArea()` on a content container | | `todo` |
+| LAY-09 `scaleEffect` over text | `.scaleEffect(` on a container carrying text | | `todo` |
+| LAY-10 undocumented geometry arithmetic | `safeAreaInsets`/`geo.` in the view layer without a derivation comment | | `todo` |
+
+Statuses: `todo / clean / hits / fixed / waived`.
+
 ## Adaptivity matrix (stage 6)
 
-One row per combination. The set comes from the deployment target, the spec, and the Strings, Typography and Accessibility contracts: smallest + largest screen; light/dark; permitted content sizes; supported locales and directions and long copy; orientations if supported; keyboard and safe area. Add AX/VoiceOver/Reduce Motion/increased contrast and other accessibility-only rows only when Accessibility scope is explicitly active; the `no-add` baseline does not create them.
+One row per combination. The set comes from the deployment target, the spec, and the Layout, Strings, Typography and Accessibility contracts. Layout (LAY-11) makes these mandatory: the smallest supported device, the largest, and devices both with and without a home indicator (different bottom safe area). Per device the evidence explicitly states that the layout fits the screen, that there is no unintended letterboxing, no clipped content, and that the background reaches the edges. Then the remaining axes: smallest + largest screen; light/dark; permitted content sizes; supported locales and directions and long copy; orientations if supported; keyboard and safe area. Add AX/VoiceOver/Reduce Motion/increased contrast and other accessibility-only rows only when Accessibility scope is explicitly active; the `no-add` baseline does not create them.
 
 | Screen | Device | Appearance | Content size | Locale / direction | Orientation | Status | Evidence |
 |--------|--------|------------|--------------|--------------------|-------------|--------|----------|
@@ -162,9 +180,11 @@ Statuses: `open` / `answered` / `resolved-from-docs` (name where it was found: s
 
 ## Design comparison (stage 5)
 
-| Screen | Report | ❌ → fix | Status |
-|--------|--------|----------|--------|
-| | design-compare-reports/<FEATURE>/... | | |
+| Screen | Report | Sizes compared (reference + non-reference) | ❌ → fix | Status |
+|--------|--------|--------------------------------------------|----------|--------|
+| | design-compare-reports/<FEATURE>/... | `<393×852 + 375×667>` | | |
+
+A screen is not comparable while only the reference size is covered. An inset divergence inside the LAY-07 snap window (−2…+4pt) is a match, not a ❌.
 
 ## TBD / stubs (stage 7)
 
