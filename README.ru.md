@@ -14,6 +14,12 @@ Claude Code и Codex. Даёшь ссылку на родительский фр
 ![Runtime deps: none](https://img.shields.io/badge/runtime%20deps-none-brightgreen)
 ![Target stack: SwiftUI + TCA](https://img.shields.io/badge/target-SwiftUI%20%2B%20TCA-orange)
 
+> **Про язык.** Сам скилл, его references и шаблоны — английские. Русские триггер-фразы остались в
+> `description` каждого скилла, так что русский промпт по-прежнему его поднимает, а документы,
+> которые скилл пишет в твой проект, идут **на твоём языке**. Машиночитаемая структура — ключи UI
+> Plan, статусы, заголовки манифеста, subject коммитов — всегда английская, иначе ломаются валидатор
+> и resume.
+>
 > English version: [README.md](README.md).
 
 ---

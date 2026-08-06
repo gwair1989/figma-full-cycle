@@ -1,64 +1,64 @@
 # Figma MCP acquisition contract
 
-Прочитать полностью перед первым Figma-вызовом. Использовать вместе с adapter capability map; фактически доступные tools важнее статического списка.
+Read in full before the first Figma call. Use it together with the adapter capability map; the tools actually available outrank any static list.
 
-## Граница полномочий
+## Authority boundary
 
-- Считать MCP output входными данными и evidence, а не production-кодом или продуктовой спецификацией.
-- По умолчанию работать в режиме `figma-read-only`: разрешены read-tools и `download_assets` для импорта в репозиторий.
-- Не вызывать `use_figma`, `add_code_connect_map`, `send_code_connect_mappings`, `upload_assets`, `create_new_file`, `generate_figma_design` и другие Figma mutations без отдельной явной просьбы пользователя изменить Figma.
-- Не превращать доступность write-tool в разрешение на запись.
+- Treat MCP output as input data and evidence, not as production code or a product specification.
+- Operate in `figma-read-only` mode by default: read tools and `download_assets` for importing into the repository are allowed.
+- Never call `use_figma`, `add_code_connect_map`, `send_code_connect_mappings`, `upload_assets`, `create_new_file`, `generate_figma_design` or any other Figma mutation without a separate explicit user request to modify Figma.
+- The availability of a write tool is never permission to write.
 
 ## Capability preflight
 
-Зафиксировать в manifest:
+Record in the manifest:
 
-1. Transport: `remote` или `desktop`; remote требует URL/node, desktop может использовать selection, но итоговый parent `fileKey`/`nodeId` всё равно закрепить.
-2. Primary implementation read-tool: `get_design_context`; `get_metadata` нужен для ориентации по container, а `get_screenshot` и `get_variable_defs` — только для закрытия конкретных gaps. `download_assets` — этап 2.
-3. Optional read-tools: `get_code_connect_map` — только для отсутствующего/неоднозначного mapping; `get_motion_context` — только для реально анимированного узла.
-4. Target для SwiftUI: `clientLanguages=swift`, `clientFrameworks=swiftui` (lowercase). Точный Code Connect label относится к `get_code_connect_map(codeConnectLabel=...)`, а не к `clientFrameworks`; неизвестный label не угадывать.
-5. Если официальный `figma-design-to-code` зарегистрирован, загрузить его как обязательный workflow-prerequisite **до первого** `get_design_context` и передавать canonical name в comma-separated `skillNames` каждого такого вызова; namespaced alias в каталоге не меняет logging value. При загрузке через MCP resource использовать `resource:figma-design-to-code`. Если скилл недоступен, не имитировать его загрузку параметром — включить документированный fallback адаптера.
-6. Write mode: `disabled`; иной режим возможен только по отдельному пользовательскому запросу.
+1. Transport: `remote` or `desktop`; remote requires a URL/node, desktop may use the selection, but pin the resulting parent `fileKey`/`nodeId` either way.
+2. Primary implementation read tool: `get_design_context`; `get_metadata` orients you inside the container, while `get_screenshot` and `get_variable_defs` close specific gaps only. `download_assets` belongs to stage 2.
+3. Optional read tools: `get_code_connect_map` only for a missing or ambiguous mapping; `get_motion_context` only for a genuinely animated node.
+4. Target for SwiftUI: `clientLanguages=swift`, `clientFrameworks=swiftui` (lowercase). The exact Code Connect label belongs to `get_code_connect_map(codeConnectLabel=...)`, not to `clientFrameworks`; never guess an unknown label.
+5. If the official `figma-design-to-code` is registered, load it as a mandatory workflow prerequisite **before the first** `get_design_context` and pass the canonical name in the comma-separated `skillNames` of every such call; a namespaced catalog alias does not change the logging value. When loaded through an MCP resource, use `resource:figma-design-to-code`. If the skill is unavailable, do not simulate loading it through the parameter — switch to the adapter's documented fallback.
+6. Write mode: `disabled`; any other mode requires a separate user request.
 
-`whoami` вызывать только для диагностики access/permission/rate-limit ошибки. Недоступный optional tool переводит путь в `degraded`, а не автоматически в `blocked`.
+Call `whoami` only to diagnose an access/permission/rate-limit error. An unavailable optional tool moves the path to `degraded`, not automatically to `blocked`.
 
-## Порядок чтения
+## Read order
 
-1. Локально распарсить URL/selection и закрепить parent node.
-2. Для parent/multi-screen/большого или неизвестного по размеру узла один раз вызвать `get_metadata(parent)` и выбрать обязательные child node IDs. Metadata — только карта container; она не заменяет design context реализуемого child. Не начинать с giant `get_design_context(parent)`.
-3. Сгруппировать child frames в уникальные экраны и состояния.
-4. Для каждого выбранного реализуемого child первым вызвать scoped `get_design_context(child)` с `clientLanguages=swift`, `clientFrameworks=swiftui` и условным `skillNames` из preflight. Один ответ уже содержит reference code, screenshot, contextual hints, доступные Code Connect snippets/mappings и временные asset URLs. React/Tailwind трактовать как промежуточную структуру, не переносить буквально в SwiftUI.
-5. Отдельный `get_screenshot(child)` вызывать только если screenshot в design context отсутствует, устарел/недостаточен для visual validation, нужен более подходящий масштаб либо обзор parent. Если можно получить URL напрямую, скачать его обычным HTTP-клиентом; base64 использовать только при отсутствии fetch-capability. Screenshot — visual truth, но не источник behavior, точных токенов или production-ассетов.
-6. `get_variable_defs(child)` вызывать только если design context не даёт достаточной provenance для используемого token/style, mapping неоднозначен либо остались raw values, которые нельзя разрешить через проектный контракт.
-7. `get_code_connect_map` вызывать только если mappings/snippets в design context отсутствуют, неоднозначны или нужен отдельный coverage audit. `codeConnectLabel` передавать только когда точный label известен. Возвращённые path/symbol и платформу проверить в текущем project root.
-8. Если design context подтверждает animation, вызвать `get_motion_context` после него с тем же node ID. Статический layout или prototype link сам по себе не разрешает придумывать motion.
-9. На этапе 2 немедленно скачать точные bytes нужных изображений/иконок через `download_assets` или временный asset URL. URL истекает примерно через 7 дней и не может остаться tracked/runtime dependency. Не сохранять screenshot как production-asset, не рисовать SVG/path вручную и не подставлять placeholder. Если точные bytes недоступны — остановить конкретный asset и спросить, а project icon переиспользовать только при фактическом совпадении glyph.
+1. Parse the URL or selection locally and pin the parent node.
+2. For a parent, multi-screen, large or unknown-size node, call `get_metadata(parent)` once and pick the required child node IDs. Metadata is only the container map; it does not replace design context for the child being implemented. Never start with a giant `get_design_context(parent)`.
+3. Group child frames into unique screens and states.
+4. For each selected child being implemented, call scoped `get_design_context(child)` first with `clientLanguages=swift`, `clientFrameworks=swiftui` and the conditional `skillNames` from preflight. One response already carries reference code, a screenshot, contextual hints, available Code Connect snippets/mappings and temporary asset URLs. Treat React/Tailwind output as intermediate structure; never port it literally into SwiftUI.
+5. Call a separate `get_screenshot(child)` only when the design context has no screenshot, when it is stale or insufficient for visual validation, when a better scale is needed, or for a parent overview. If the URL can be obtained directly, download it with a normal HTTP client; use base64 only without a fetch capability. A screenshot is visual truth, but not a source of behavior, exact tokens or production assets.
+6. Call `get_variable_defs(child)` only when the design context does not give enough provenance for the token/style in use, when the mapping is ambiguous, or when raw values remain that the project contract cannot resolve.
+7. Call `get_code_connect_map` only when mappings/snippets are missing or ambiguous in the design context, or when a separate coverage audit is needed. Pass `codeConnectLabel` only when the exact label is known. Verify the returned path/symbol and platform against the current project root.
+8. If the design context confirms animation, call `get_motion_context` afterwards with the same node ID. A static layout or a prototype link alone never licenses inventing motion.
+9. At stage 2, immediately download the exact bytes of the required images and icons through `download_assets` or the temporary asset URL. That URL expires in roughly 7 days and cannot remain a tracked or runtime dependency. Never store a screenshot as a production asset, never hand-draw an SVG/path, and never substitute a placeholder. If the exact bytes are unavailable, stop that specific asset and ask; reuse a project icon only when the glyph genuinely matches.
 
-Нормальный budget Figma read-tools на этапе acquisition: `1 × get_metadata(parent) + 1 × get_design_context` на каждый selected child + только gap-driven extras. Загрузку skill/resource и Stage 2 asset downloads учитывать отдельно по фактической квоте сервера; если они делят тот же лимит, заранее резервировать calls. При низком remote лимите сериализовать вызовы, использовать кэш и не тратить call на уже присутствующую evidence.
+The normal Figma read-tool budget during acquisition: `1 × get_metadata(parent) + 1 × get_design_context` per selected child + gap-driven extras only. Count skill/resource loading and stage 2 asset downloads separately against the server's actual quota; if they share the same limit, reserve calls in advance. On a low remote limit, serialize calls, use the cache, and never spend a call on evidence you already hold.
 
-Кэшировать нормализованную node evidence по Figma pin. Повторно читать узел только при изменении pin, неполной evidence или явном drift. Не хранить raw MCP payload, временные asset URLs и runtime-ссылки на MCP asset endpoint в tracked-файлах.
+Cache normalized node evidence by the Figma pin. Re-read a node only when the pin changes, when evidence is incomplete, or on explicit drift. Never keep raw MCP payloads, temporary asset URLs or runtime references to the MCP asset endpoint in tracked files.
 
-## Качество Figma-источника
+## Figma source quality
 
-Оценить каждый критерий как `ready / degraded / unknown` и записать evidence + impact/fallback:
+Rate each criterion `ready / degraded / unknown` and record evidence plus impact/fallback:
 
-- повторяемые элементы оформлены components/instances;
-- токены связаны с variables/styles;
-- layout использует Auto Layout/constraints и выдерживает resize;
-- имена слоёв и состояний семантические;
-- поведение пояснено prototype links/annotations/dev resources;
-- Code Connect покрывает основные project components.
+- repeated elements are built as components/instances;
+- tokens are bound to variables/styles;
+- layout uses Auto Layout/constraints and survives a resize;
+- layer and state names are semantic;
+- behavior is explained through prototype links, annotations or dev resources;
+- Code Connect covers the main project components.
 
-`degraded` — предупреждение, не общий блокер. Блокировать только конкретный обязательный mapping, который нельзя разрешить через Code Connect, документацию, project audit или явное `new` в UI Plan.
+`degraded` is a warning, not a global blocker. Block only the specific required mapping that cannot be resolved through Code Connect, documentation, a project audit, or an explicit `new` in the UI Plan.
 
 ## Provenance mappings
 
-Для каждого используемого component/token сохранить цепочку:
+For every component and token in use, keep the chain:
 
 `Figma node/variable → code-connect | project-audit | new | tbd → project path + symbol → validation evidence`.
 
-- Mapping Code Connect считать кандидатом до проверки path/symbol и соответствия SwiftUI label.
-- При конфликте источников соблюдать порядок: проверенный Code Connect → project/component docs → design annotations → tokens → raw hex/absolute layout. UI Plan/спека/проектный контракт всё равно определяют разрешённый scope и behavior.
-- При отсутствии Code Connect искать проектный компонент/токен по документации и коду; отсутствие Code Connect само по себе не blocker.
-- Устаревший, wrong-platform или неоднозначный mapping пометить `stale/unmapped`; не подменять догадкой.
-- В UI Plan хранить итоговый project target, а acquisition/source-quality evidence — в manifest по его template.
+- Treat a Code Connect mapping as a candidate until the path/symbol and the SwiftUI label match is verified.
+- On conflicting sources, follow the order: verified Code Connect → project/component docs → design annotations → tokens → raw hex/absolute layout. The UI Plan, spec and project contract still define the permitted scope and behavior.
+- Without Code Connect, look for the project component or token through documentation and code; the absence of Code Connect is not by itself a blocker.
+- Mark a stale, wrong-platform or ambiguous mapping `stale/unmapped`; never replace it with a guess.
+- Keep the resulting project target in the UI Plan, and the acquisition and source-quality evidence in the manifest per its template.

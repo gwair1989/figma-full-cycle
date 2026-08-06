@@ -14,6 +14,11 @@ versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Both skills are now written in English — `SKILL.md`, references, adapters and templates. The
+  Russian trigger phrases stay in each `description`, and generated project documents follow the
+  user's language while machine-read structure stays English.
+- `ui_plan.py` reads the asset checklist from `## Sub-checklist: assets` and still accepts the
+  pre-translation `## Под-чеклист: ассеты` heading, so manifests already in flight keep validating.
 - CI no longer runs the validator tests; they run locally. The workflow keeps only the skill
   structure and relative-link checks.
 - `install.sh --force` moves the replaced skill to `.skill-backups` beside the target directory

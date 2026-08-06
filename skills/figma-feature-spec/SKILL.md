@@ -1,69 +1,94 @@
 ---
 name: figma-feature-spec
-description: 'Use when given a Figma frame link/URL for a whole feature or flow and a written spec is needed before any coding — turning the frame''s child screens into a Russian pre-implementation spec document. Triggers: "сделай спеку по фигме", "спека по фрейму", "разложи фрейм на экраны", "figma flow to spec", "feature spec from frame", pre-implementation design doc from a Figma parent frame.'
+description: 'Use when given a Figma frame link/URL for a whole feature or flow and a written spec is needed before any coding — turning the frame''s child screens into a pre-implementation spec document. Triggers: "сделай спеку по фигме", "спека по фрейму", "разложи фрейм на экраны", "figma flow to spec", "feature spec from frame", pre-implementation design doc from a Figma parent frame.'
 ---
 
 # Figma Feature Spec
 
 ## Overview
 
-Из ссылки на **родительский frame фичи в Figma** генерирует **русский документ-спеку** (этап 1, до вёрстки): перечень экранов, navigation map, per-screen инвентарь ассетов и черновик задач вёрстки.
+From a link to the **parent frame of a feature in Figma**, generates a **written spec document**
+(stage 1, before any implementation): screen list, navigation map, per-screen asset inventory and a
+draft checklist of implementation tasks.
 
-**Три артефакта в одном md:** (1) спека экранов по шаблону, (2) инвентарь ассетов (node-id для `import-figma-assets`), (3) чеклист задач вёрстки на этап 2.
+**Three artifacts in one md:** (1) the screen spec following the template, (2) the asset inventory
+(node-ids for `import-figma-assets`), (3) the implementation task checklist for stage 2.
 
-**Только спека. Код/вёрстку НЕ пишем, ассеты НЕ импортируем** — этап 2. Продуктовые решения (обязательность полей, API vs статик, финал навигации) агент **не выдумывает** — выносит в «Открытые вопросы / допущения».
+**Spec only. Do NOT write code or UI, do NOT import assets** — that is stage 2. Product decisions
+(whether a field is required, API vs static data, final navigation) are **never invented** — they go
+to "Open questions / assumptions".
 
-Шаблон: `templates/SPEC.template.md` (канон структуры).
+Template: `templates/SPEC.template.md` (canonical structure).
 
 ## Prerequisites
 
-- Figma MCP подключён. Перед вызовами Figma-инструментов загрузить skill `figma` (или `figma-implement-design`).
-- Дана ссылка на **родительский** frame, содержащий все экраны фичи (не на один экран).
+- Figma MCP connected. Load the `figma` skill (or `figma-implement-design`) before any Figma tool call.
+- A link to the **parent** frame containing every screen of the feature — not to a single screen.
 
 ## Inputs
 
-- **Обязательно:** Figma URL вида `https://figma.com/design/:fileKey/:name?node-id=1-2` → извлечь `fileKey` и `node-id`.
-- Опц.: имя фичи (иначе из имени frame), путь вывода (по умолчанию `docs/<FEATURE>_SPEC.md`), стек для «Архитектурной заметки» (по умолчанию — определить из проекта: reducer-паттерн, централизация copy, colorset'ы).
+- **Required:** a Figma URL shaped `https://figma.com/design/:fileKey/:name?node-id=1-2` → extract
+  `fileKey` and `node-id`.
+- Optional: feature name (otherwise taken from the frame name), output path (default
+  `docs/<FEATURE>_SPEC.md`), the stack for the "Architecture note" (default: derive it from the
+  project — reducer pattern, copy centralization, colorsets).
 
 ## Workflow
 
-1. **Парсинг URL** → `fileKey` + `nodeId`.
-2. **`get_metadata`** по родительскому frame → инвентарь дочерних фреймов: `node-id`, имя, `w×h`. Это карта экранов/состояний.
-3. **Группировка в уникальные экраны.** Несколько фреймов = состояния одного экрана (дедуп по имени/визуалу: empty/typing/filled/selected). Для каждого уникального экрана — `get_screenshot`; `get_design_context` только когда нужен текст/цвета/размеры/структура.
-4. **Per-экран заполнить блок шаблона:**
-   - Описание из визуала (что за экран, ключевые элементы).
-   - **Инвентарь ассетов:** node-id иконок/фото/иллюстраций, которые на этапе 2 пойдут в `import-figma-assets`; классифицировать raster/vector; предложить имя ассета. Сложную masked-иллюстрацию помечать «flatten-экспорт».
-   - Черновик логики: State / Actions / Navigation / Data-API=TBD.
-   - `View: _TBD_ (предл. <Имя>View)`.
-   - Чеклист задач вёрстки (что верстать, какие состояния, какие ассеты).
-5. **Navigation map (mermaid)** — по порядку фреймов, именам, CTA-кнопкам. Рёбра-догадки помечать `?`.
-6. **Опечатки копирайта** — найти (напр. «Add animail», «Galery»), пометить `⚠️ typo`, указать «в коде — корректная строка через централизованный copy».
-7. **Открытые вопросы / допущения** — собрать всё невыводимое из дизайна: обязательность полей, источник справочников (API vs статик), зависимости полей, что реализуется заглушкой, поведение back, точка выхода.
-8. **Записать** `docs/<FEATURE>_SPEC.md` из `templates/SPEC.template.md` (Write). Вернуть путь + краткое резюме (сколько экранов, сколько ассетов, сколько открытых вопросов).
+1. **Parse the URL** → `fileKey` + `nodeId`.
+2. **`get_metadata`** on the parent frame → inventory of child frames: `node-id`, name, `w×h`. This
+   is the map of screens and states.
+3. **Group into unique screens.** Several frames are often states of one screen (deduplicate by name
+   or visual: empty/typing/filled/selected). Take one `get_screenshot` per unique screen; call
+   `get_design_context` only where copy, colors, dimensions or structure are actually needed.
+4. **Fill the template block per screen:**
+   - Description derived from the visual (what the screen is, key elements).
+   - **Asset inventory:** node-ids of icons, photos and illustrations that stage 2 will feed to
+     `import-figma-assets`; classify raster vs vector; propose an asset name. Mark a complex masked
+     illustration as "flatten export".
+   - Draft logic: State / Actions / Navigation / Data-API=TBD.
+   - `View: _TBD_ (suggested <Name>View)`.
+   - Implementation task checklist (what to build, which states, which assets).
+5. **Navigation map (mermaid)** — from frame order, names and CTA buttons. Mark guessed edges with `?`.
+6. **Copy typos** — find them (e.g. "Add animail", "Galery"), mark `⚠️ typo`, and note "the code uses
+   the corrected string through the centralized copy mechanism".
+7. **Open questions / assumptions** — collect everything the design cannot answer: required fields,
+   source of reference data (API vs static), field dependencies, what ships as a stub, back
+   behavior, exit point.
+8. **Write** `docs/<FEATURE>_SPEC.md` from `templates/SPEC.template.md` (Write). Return the path plus
+   a short summary (screen count, asset count, open question count).
 
 ## Quick Reference — Figma MCP
 
-| Нужно | Инструмент |
-|-------|-----------|
-| Список дочерних фреймов | `get_metadata(fileKey, nodeId)` |
-| Картинка экрана | `get_screenshot(fileKey, nodeId)` |
-| Текст/цвета/размеры/ассеты | `get_design_context(fileKey, nodeId)` |
-| Переменные/токены | `get_variable_defs(fileKey, nodeId)` |
+| Need | Tool |
+|------|------|
+| List of child frames | `get_metadata(fileKey, nodeId)` |
+| Screen image | `get_screenshot(fileKey, nodeId)` |
+| Copy / colors / dimensions / assets | `get_design_context(fileKey, nodeId)` |
+| Variables and tokens | `get_variable_defs(fileKey, nodeId)` |
 
-Ассеты на этапе 1 **только инвентаризируем** (node-id + классификация). Скачивание/`download_assets` — этап 2.
+At stage 1 assets are **inventoried only** (node-id + classification). Downloading and
+`download_assets` belong to stage 2.
 
 ## Guardrails
 
-- **Не выдумывать продуктовые решения.** Не выводится из дизайна → в «Открытые вопросы» с `TBD`, а не как факт.
-- **Спека-only:** ни кода, ни импорта ассетов, ни правок проекта кроме одного md.
-- **Язык вывода — русский** (если явно не попросили иной).
-- **Копирайт:** в спеке корректные строки, опечатки дизайна помечены, не тащить их в «строки для кода».
-- Соблюдать правила проекта (AGENTS.md/CLAUDE.md): не трогать baseline/sibling-воркти.
+- **Never invent product decisions.** Anything the design does not state goes to "Open questions" as
+  a `TBD`, not into the spec as a fact.
+- **Spec only:** no code, no asset import, no project edits beyond the single md file.
+- **Output language follows the user's language** — the language of the request, unless the user asks
+  for another. Structural markers stay as the template defines them so downstream stages can parse
+  the document.
+- **Copy:** the spec carries corrected strings, design typos are flagged, and typos never leak into
+  the "strings for code" section.
+- Follow project rules (AGENTS.md / CLAUDE.md): never touch the baseline or sibling worktrees.
 
 ## Common Mistakes
 
-- Дали ссылку на один экран, а не на родительский frame → `get_metadata` вернёт мало; попросить ссылку на frame-контейнер флоу.
-- Каждый фрейм = отдельный экран → нет, схлопывать состояния одного экрана.
-- Инвентарь ассетов = «скачать сейчас» → нет, только node-id для этапа 2.
-- Пустой navigation map → вывести хотя бы линейную цепочку по порядку фреймов, спорное пометить `?`.
-- `get_design_context` по каждому фрейму подряд → дорого; звать точечно, где реально нужны детали.
+- A link to one screen instead of the parent frame → `get_metadata` returns almost nothing; ask for
+  the link to the flow's container frame.
+- Treating every frame as a separate screen → collapse states of the same screen instead.
+- Reading the asset inventory as "download now" → it is only node-ids for stage 2.
+- An empty navigation map → derive at least the linear chain from frame order and mark uncertain
+  edges with `?`.
+- Calling `get_design_context` on every frame in sequence → expensive; call it where details are
+  genuinely needed.

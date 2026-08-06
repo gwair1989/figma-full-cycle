@@ -65,13 +65,21 @@ def strip_markdown_cell(value: str) -> str:
     return value.strip().strip(chr(96)).strip()
 
 
-def markdown_section(text: str, heading_prefix: str) -> str | None:
-    pattern = re.compile(
-        rf"^##\s+{re.escape(heading_prefix)}[^\n]*\n(?P<body>.*?)(?=^##\s+|\Z)",
-        re.MULTILINE | re.DOTALL,
-    )
-    match = pattern.search(text)
-    return match.group("body") if match else None
+def markdown_section(text: str, *heading_prefixes: str) -> str | None:
+    """Body of the first section whose heading starts with one of the prefixes.
+
+    Accepting several prefixes keeps manifests created from the earlier Russian
+    templates validating after the templates were translated.
+    """
+    for heading_prefix in heading_prefixes:
+        pattern = re.compile(
+            rf"^##\s+{re.escape(heading_prefix)}[^\n]*\n(?P<body>.*?)(?=^##\s+|\Z)",
+            re.MULTILINE | re.DOTALL,
+        )
+        match = pattern.search(text)
+        if match:
+            return match.group("body")
+    return None
 
 
 def table_column_values(
@@ -118,7 +126,9 @@ def manifest_references(
     text: str,
 ) -> tuple[set[str], set[str], bool, bool, bool, bool]:
     copy_section = markdown_section(text, "Feature copy inventory")
-    asset_section = markdown_section(text, "Под-чеклист: ассеты")
+    asset_section = markdown_section(
+        text, "Sub-checklist: assets", "Под-чеклист: ассеты"
+    )
     copy_ids, has_copy_table = table_column_values(copy_section, 0, "Copy ID")
     asset_node_ids, has_asset_table = table_column_values(asset_section, 1, "node-id")
     return (
@@ -168,7 +178,7 @@ class Validator:
                 self.error(
                     "$.project_contract.manifest",
                     None,
-                    "a ## Под-чеклист: ассеты section",
+                    "a ## Sub-checklist: assets section",
                     "Create the section from templates/PIPELINE.template.md, even when its table is empty.",
                 )
             if has_copy_section and not has_copy_table:

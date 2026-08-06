@@ -1,72 +1,72 @@
 # <FEATURE> — Pipeline manifest
 
-> Источник правды полного цикла. Пишет только главный поток скилла `figma-full-cycle`.
+> The full cycle's source of truth. Only the main thread of the `figma-full-cycle` skill writes here.
 > pipeline_schema_version: 7
-> run_id: <RUN_ID> <!-- дата+slug; новый при свежем старте, сохраняется при resume -->
+> run_id: <RUN_ID> <!-- date+slug; new on a fresh start, preserved across resume -->
 > Figma: <FIGMA_URL>
 > Figma pin: fileKey=<KEY> node=<NODE> version=<VERSION_OR_HASH> checked_at=<TS>
 > Base: <BASE_BRANCH> @ <BASE_SHA>
-> Ветка: feature/<FEATURE>
-> Спека: docs/<FEATURE>_SPEC.md
+> Branch: feature/<FEATURE>
+> Spec: docs/<FEATURE>_SPEC.md
 > UI Plan: docs/<FEATURE>_UI_PLAN.json schema=1 sha256=<SHA256> validated_at=<TS> phase=<ui|production> status=<todo|valid|stale>
-> Режим: <full | ui-first (стоп перед логикой, ждёт ТЗ)>
-> Готовность: <production-ready | prototype/UI-only (выбор пользователя) | TBD>
-> Runtime (gitignored, не в PR): docs/<FEATURE>_PIPELINE.local.md
+> Mode: <full | ui-first (stop before logic, waiting for requirements)>
+> Readiness: <production-ready | prototype/UI-only (user's choice) | TBD>
+> Runtime (gitignored, never in a PR): docs/<FEATURE>_PIPELINE.local.md
 
-## Контракт UI-конвенций проекта (preflight)
+## Project UI convention contract (preflight)
 
-> Read-only аудит выполнен до Figma и worktree; сюда перенесён сразу после создания manifest.
-> Проверено: base=<BASE_SHA> checked_at=<TS>. При resume перепроверить изменившиеся источники.
+> The read-only audit ran before Figma and before the worktree; it moves here right after the manifest is created.
+> Checked: base=<BASE_SHA> checked_at=<TS>. On resume, re-check the sources that changed.
 
-| Область | Источники проекта (path + section/symbol) | Правило проекта | Baseline скилла | Итоговое решение | Статус |
-|---------|-------------------------------------------|-----------------|------------------|------------------|--------|
+| Area | Project sources (path + section/symbol) | Project rule | Skill baseline | Resolved decision | Status |
+|------|------------------------------------------|--------------|----------------|-------------------|--------|
 | Strings | | | `references/project-ui-conventions.md#strings-baseline` | | `todo` |
 | Typography | | | `references/project-ui-conventions.md#typography-baseline` | | `todo` |
 | Colors | | | `references/project-ui-conventions.md#colors-baseline` | | `todo` |
 | Images | | | `import-figma-assets` + `references/project-ui-conventions.md#images-baseline` | | `todo` |
-| Accessibility | | | `references/project-ui-conventions.md#accessibility-baseline` | `no-add`, если нет явного требования документации/пользователя | `todo` |
+| Accessibility | | | `references/project-ui-conventions.md#accessibility-baseline` | `no-add` unless documentation or the user explicitly requires otherwise | `todo` |
 
-Статусы: `matched / project-specific / skill-fallback / inferred-from-code / conflict / not-applicable`. Этапы 1–8 не стартуют при `todo` или затрагивающем этап открытом `conflict`. Для Accessibility отсутствие явного требования → `skill-fallback`, решение `no-add`; `inferred-from-code` не активирует scope.
+Statuses: `matched / project-specific / skill-fallback / inferred-from-code / conflict / not-applicable`. Stages 1–8 do not start while a row is `todo` or while an open `conflict` affects the stage. For Accessibility, no explicit requirement → `skill-fallback` with the decision `no-add`; `inferred-from-code` never activates scope.
 
-## Figma MCP acquisition (preflight + этап 1)
+## Figma MCP acquisition (preflight + stage 1)
 
-> Заполнять по `references/figma-mcp-acquisition.md`. Список фактически доступных tools важнее статического каталога; raw MCP payload и временные asset URLs сюда не копировать.
+> Fill per `references/figma-mcp-acquisition.md`. The list of tools actually available outranks the static catalog; never copy raw MCP payloads or temporary asset URLs here.
 
-| Transport / input | Read capabilities | Optional capabilities | Target | Write mode | Pin / normalized cache evidence | Статус |
+| Transport / input | Read capabilities | Optional capabilities | Target | Write mode | Pin / normalized cache evidence | Status |
 |-------------------|-------------------|-----------------------|--------|------------|---------------------------------|--------|
 | `<remote URL+node / desktop selection→pinned node>` | `<metadata, screenshot, design-context, variable-defs, download-assets>` | `<code-connect / motion / unavailable>` | `language=swift; framework=<EXACT_MAPPING_LABEL / iOS-SwiftUI>` | `disabled` | `<fileKey/node/version + local artifact or none>` | `<ready / degraded / blocked>` |
 
-`degraded` допустим при отсутствии optional capability, если выбран и подтверждён fallback. Любая Figma mutation требует отдельного пользовательского запроса и не включается в обычный stage flow.
+`degraded` is acceptable when an optional capability is missing and a fallback has been chosen and confirmed. Any Figma mutation requires a separate user request and never joins the normal stage flow.
 
-### Качество Figma-источника
+### Figma source quality
 
-| Критерий | Evidence | Статус | Impact / fallback |
-|----------|----------|--------|-------------------|
+| Criterion | Evidence | Status | Impact / fallback |
+|-----------|----------|--------|-------------------|
 | Components / instances | | `<ready / degraded / unknown>` | |
 | Variables / styles | | `<ready / degraded / unknown>` | |
 | Auto Layout / constraints / resize | | `<ready / degraded / unknown>` | |
 | Semantic layer / state names | | `<ready / degraded / unknown>` | |
 | Prototype / annotations / dev resources | | `<ready / degraded / unknown>` | |
-| Code Connect coverage | | `<ready / degraded / unknown>` | `<project audit при отсутствии>` |
+| Code Connect coverage | | `<ready / degraded / unknown>` | `<project audit when absent>` |
 
-`degraded` не блокирует весь этап. Блокировать только обязательный mapping, который нельзя разрешить через Code Connect, project audit или явное `new` в UI Plan.
+`degraded` does not block the whole stage. Block only a required mapping that cannot be resolved through Code Connect, a project audit, or an explicit `new` in the UI Plan.
 
 ### Component / token provenance
 
-> Одна строка на используемый component/token. UI Plan хранит итоговый target; здесь — происхождение и проверка mapping.
+> One row per component or token in use. The UI Plan holds the resulting target; this table holds the mapping's origin and verification.
 
-| Figma node / variable | Kind | Mapping source | Project target (path + symbol) | Label / mapping version | Validation evidence | Статус |
+| Figma node / variable | Kind | Mapping source | Project target (path + symbol) | Label / mapping version | Validation evidence | Status |
 |-----------------------|------|----------------|--------------------------------|-------------------------|---------------------|--------|
 | | `<component / token>` | `<code-connect / project-audit / new / tbd>` | | | | `<verified / unmapped / stale / blocked>` |
 
-Code Connect mapping — кандидат до проверки project path/symbol и SwiftUI label. Его отсутствие само по себе не blocker; `unmapped/stale` требует project audit, явного `new` или `tbd` с соответствующим gate.
+A Code Connect mapping is a candidate until the project path/symbol and the SwiftUI label are verified. Its absence is not by itself a blocker; `unmapped/stale` requires a project audit, an explicit `new`, or a `tbd` with the matching gate.
 
 ## Strings snapshot (preflight; compact)
 
-> Заполнять для затронутого Strings scope после документации проекта и одного read-only inventory. Документация определяет механизм; helper только подтверждает факты. Catalog values/raw output сюда не копировать.
+> Fill for the affected Strings scope after reading project documentation and running one read-only inventory. Documentation decides the mechanism; the helper only confirms facts. Never copy catalog values or raw output here.
 
-| Поле | Разрешённое значение | Источник / evidence |
-|------|----------------------|---------------------|
+| Field | Resolved value | Source / evidence |
+|-------|----------------|-------------------|
 | Mechanism | `<xcstrings-auto / xcstrings-manual / xcstrings-generated-symbols / strings / strings+stringsdict / project-specific / not-applicable>` | `<doc path + section>` |
 | Owner / resources | `<target/module; catalog/table; bundle; paths>` | `<doc or inferred symbol>` |
 | API / key style | `<allowed API; natural/opaque convention>` | `<doc or representative call sites>` |
@@ -80,104 +80,104 @@ Code Connect mapping — кандидат до проверки project path/sym
 
 ## Feature copy inventory (unique semantics only)
 
-> Одна строка на уникальный смысл/translator context, usages перечислять вместе. Не дублировать одинаковый copy по экранам и не хранить полный catalog. Accessibility copy добавлять только при активном Accessibility-контракте.
+> One row per unique meaning and translator context, listing usages together. Never duplicate identical copy per screen and never store a full catalog here. Add accessibility copy only under an active Accessibility contract.
 
 | Copy ID | Source copy | Usages (compact screen/state/control refs) | Kind / params / translator context | Resource path / catalog / table / bundle | Resolved key/symbol + allocation/lookup evidence | Translation batch/status | Source status |
 |---------|-------------|--------------------------------------------|------------------------------------|------------------------------------------|--------------------------------------------------|--------------------------|---------------|
 | | | | `<simple / interpolation / plural / variant>` | | | `<none / H1:pending / H1:verified>` | `todo` |
 
-Source statuses: `todo / reuse / new / TBD / implemented / verified`. Этап 1 закрывается после одного полного (без `MATCHES_TRUNCATED`) batched lookup и разрешения каждого key; этап 3 — после exact path-qualified `repo-path::key` `diff --strict`, `validate`, project build и перевода всех затронутых source-строк в `verified`. Reuse без физического изменения не входит в diff expectations. Translation readiness/merge policy определяется только документацией проекта и не маскируется source status.
+Source statuses: `todo / reuse / new / TBD / implemented / verified`. Stage 1 closes after one complete batched lookup (no `MATCHES_TRUNCATED`) and a resolution for every key; stage 3 closes after an exact path-qualified `repo-path::key` `diff --strict`, `validate`, a project build, and every affected source string turning `verified`. Reuse without a physical change does not belong in the diff expectations. Translation readiness and merge policy come only from project documentation and are never masked by the source status.
 
-### Translation handoff batches (только если требует проект)
+### Translation handoff batches (only when the project requires them)
 
-| Batch | Copy IDs | Owner | Artifact / evidence | Merge policy / due | Статус |
+| Batch | Copy IDs | Owner | Artifact / evidence | Merge policy / due | Status |
 |-------|----------|-------|---------------------|--------------------|--------|
 | H1 | | | | | `<pending / handed-off / verified / waived>` |
 
-## Этапы
+## Stages
 
-| # | Этап | Статус | Commit subject | Заметка |
-|---|------|--------|----------------|---------|
+| # | Stage | Status | Commit subject | Note |
+|---|-------|--------|----------------|------|
 | 0 | Worktree + toolchain | `todo` | pipeline(<FEATURE>): stage 0 | |
-| 1 | Спека + UI Plan | `todo` | pipeline(<FEATURE>): stage 1 | |
-| 2 | Ассеты | `todo` | pipeline(<FEATURE>): stage 2 | |
-| 3 | Верстка UI + скелет TCA | `todo` | pipeline(<FEATURE>): stage 3 | |
-| 4 | Рефакторинг UI (условный) | `todo` | pipeline(<FEATURE>): stage 4 | `skipped` если нет findings |
-| 5 | Сверка с дизайном | `todo` | pipeline(<FEATURE>): stage 5 | |
-| 6 | Адаптивность | `todo` | pipeline(<FEATURE>): stage 6 | |
-| 7 | Reducer-логика | `todo` | pipeline(<FEATURE>): stage 7 | `waiting_user` (ждёт ТЗ) если ui-first |
-| 8 | Финал | `todo` | pipeline(<FEATURE>): stage 8 | |
+| 1 | Spec + UI Plan | `todo` | pipeline(<FEATURE>): stage 1 | |
+| 2 | Assets | `todo` | pipeline(<FEATURE>): stage 2 | |
+| 3 | UI implementation + TCA skeleton | `todo` | pipeline(<FEATURE>): stage 3 | |
+| 4 | UI refactor (conditional) | `todo` | pipeline(<FEATURE>): stage 4 | `skipped` when there are no findings |
+| 5 | Design comparison | `todo` | pipeline(<FEATURE>): stage 5 | |
+| 6 | Adaptivity | `todo` | pipeline(<FEATURE>): stage 6 | |
+| 7 | Reducer logic | `todo` | pipeline(<FEATURE>): stage 7 | `waiting_user` (waiting for requirements) in ui-first |
+| 8 | Final | `todo` | pipeline(<FEATURE>): stage 8 | |
 
-Статусы: `todo / in_progress / blocked / waiting_user / ready_to_commit / done / stale / skipped / waived`.
+Statuses: `todo / in_progress / blocked / waiting_user / ready_to_commit / done / stale / skipped / waived`.
 
-Resume: сначала reconcile с git — `HEAD`, dirty/untracked, `git log --grep "pipeline(<FEATURE>)"`. `ready_to_commit` + коммит есть → `done`; коммита нет → закоммитить. Затем первый не-`done`/не-`skipped` этап → первая открытая строка его под-чеклиста. SHA в manifest не хранить — восстанавливать по subject.
+Resume: reconcile with git first — `HEAD`, dirty/untracked, `git log --grep "pipeline(<FEATURE>)"`. `ready_to_commit` + a commit exists → `done`; no commit → commit it. Then take the first stage that is neither `done` nor `skipped` → the first open row of its sub-checklist. Never store a SHA in the manifest — recover it from the subject.
 
-Commit subject в таблице — **фактический** из git; один этап = один коммит (склейка ломает resume).
+The commit subject in the table is the **actual** one from git; one stage = one commit (squashing breaks resume).
 
 ## Gate evidence
 
-| Этап | Команда / тул | Время | Результат (exit/итог) | Artifact |
-|------|---------------|-------|------------------------|----------|
+| Stage | Command / tool | Time | Result (exit/outcome) | Artifact |
+|-------|----------------|------|------------------------|----------|
 | | | | | |
 
 ## UI Plan evidence
 
-> Заполнять после каждого успешного `ui_plan.py validate`; `schema` и `sha256` копировать из строки `UI_PLAN_VALID`. Любое изменение Figma pin, resolved project contract или самого UI Plan делает запись `stale` до повторной валидации.
+> Fill after every successful `ui_plan.py validate`; copy `schema` and `sha256` from the `UI_PLAN_VALID` line. Any change to the Figma pin, the resolved project contract or the UI Plan itself makes this record `stale` until revalidation.
 
 | Artifact | Schema | Figma pin | SHA-256 | Validation command | Phase / result | validated_at |
 |----------|--------|-----------|---------|--------------------|----------------|--------------|
 | `docs/<FEATURE>_UI_PLAN.json` | `1` | `fileKey=<KEY> node=<NODE> version=<VERSION_OR_HASH>` | `<SHA256>` | `python3 <skill-root>/scripts/ui_plan.py validate --plan docs/<FEATURE>_UI_PLAN.json --manifest docs/<FEATURE>_PIPELINE.md --project-root . --phase <ui|production>` | `<ui|production> / valid` | `<TS>` |
 
-## Под-чеклист: ассеты (этап 2)
+## Sub-checklist: assets (stage 2)
 
-| Ассет | node-id | Тип | Статус | Проверка (существует / размер / hash) |
-|-------|---------|-----|--------|----------------------------------------|
+| Asset | node-id | Type | Status | Check (exists / size / hash) |
+|-------|---------|------|--------|------------------------------|
 | | | raster/vector | `todo` | |
 
-## Под-чеклист: экраны (этапы 3 / 5)
+## Sub-checklist: screens (stages 3 / 5)
 
-| Экран | View | Верстка (3) | Сверка (5) | Figma version при сверке |
-|-------|------|-------------|------------|--------------------------|
+| Screen | View | Implementation (3) | Comparison (5) | Figma version at comparison |
+|--------|------|--------------------|----------------|-----------------------------|
 | | | `todo` | `todo` | |
 
-## Матрица адаптивности (этап 6)
+## Adaptivity matrix (stage 6)
 
-Строка на комбинацию. Набор — из deployment target, спеки, Strings-, Typography- и Accessibility-контрактов: минимальный + большой экран; light/dark; разрешённые content sizes; поддерживаемые locale/направления и длинный copy; orientations если поддержаны; клавиатура/safe-area. AX/VoiceOver/Reduce Motion/increased contrast и другие accessibility-only строки добавлять только при явно активированном Accessibility scope; baseline `no-add` их не создаёт.
+One row per combination. The set comes from the deployment target, the spec, and the Strings, Typography and Accessibility contracts: smallest + largest screen; light/dark; permitted content sizes; supported locales and directions and long copy; orientations if supported; keyboard and safe area. Add AX/VoiceOver/Reduce Motion/increased contrast and other accessibility-only rows only when Accessibility scope is explicitly active; the `no-add` baseline does not create them.
 
-| Экран | Устройство | Appearance | Content size | Locale / direction | Orientation | Статус | Evidence |
-|-------|------------|------------|--------------|--------------------|-------------|--------|----------|
+| Screen | Device | Appearance | Content size | Locale / direction | Orientation | Status | Evidence |
+|--------|--------|------------|--------------|--------------------|-------------|--------|----------|
 | | | | | | | `todo` | |
 
-## Журнал вопросов
+## Question log
 
-| # | Вопрос | Этап | Блокер | Статус | Ответ / источник |
-|---|--------|------|--------|--------|------------------|
-| 1 | | | нет | open | |
+| # | Question | Stage | Blocker | Status | Answer / source |
+|---|----------|-------|---------|--------|-----------------|
+| 1 | | | no | open | |
 
-Статусы: `open` / `answered` / `resolved-from-docs` (указать где нашли: спека/README/AGENTS.md/код) / `deferred-to-spec` (ui-first: ждёт ТЗ, при resume сверить с ним).
+Statuses: `open` / `answered` / `resolved-from-docs` (name where it was found: spec / README / AGENTS.md / code) / `deferred-to-spec` (ui-first: waiting for requirements, reconcile with them on resume).
 
-## Решения
+## Decisions
 
-<!-- Принятые решения, чтобы не переспрашивать. Формат: дата — решение — источник. -->
+<!-- Decisions already made, so nothing is asked twice. Format: date — decision — source. -->
 
-## Сверка с дизайном (этап 5)
+## Design comparison (stage 5)
 
-| Экран | Отчёт | ❌ → фикс | Статус |
-|-------|-------|-----------|--------|
+| Screen | Report | ❌ → fix | Status |
+|--------|--------|----------|--------|
 | | design-compare-reports/<FEATURE>/... | | |
 
-## TBD / заглушки (этап 7)
+## TBD / stubs (stage 7)
 
-| Что | Причина | merge-blocking | Waiver (owner / issue / срок) | Статус |
-|-----|---------|----------------|-------------------------------|--------|
+| What | Reason | merge-blocking | Waiver (owner / issue / due) | Status |
+|------|--------|----------------|------------------------------|--------|
 | | | | | |
 
-`production-ready` невозможен при открытом merge-blocking TBD без waiver.
+`production-ready` is impossible while a merge-blocking TBD is open without a waiver.
 
-## Провалы gate (loop-back)
+## Gate failures (loop-back)
 
-> Полный stdout/stderr хранить отдельным локальным артефактом; сюда переносить компактную диагностическую запись. После третьего неуспешного repair-loop остановиться и запросить решение пользователя.
+> Keep full stdout/stderr as a separate local artifact; only a compact diagnostic record goes here. After the third failed repair loop, stop and ask the user to decide.
 
-| Failure ID | Этап / item | Попытка | Compact diagnostic (path:line/symbol; actual → expected) | Raw log artifact | Изменение / гипотеза | Результат / next action |
-|------------|--------------|---------|----------------------------------------------------------|------------------|----------------------|--------------------------|
+| Failure ID | Stage / item | Attempt | Compact diagnostic (path:line/symbol; actual → expected) | Raw log artifact | Change / hypothesis | Result / next action |
+|------------|--------------|---------|----------------------------------------------------------|------------------|---------------------|----------------------|
 | | | `1/3` | | | | |

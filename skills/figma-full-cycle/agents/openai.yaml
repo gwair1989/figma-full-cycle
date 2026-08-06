@@ -1,4 +1,4 @@
 interface:
   display_name: "Figma Full Cycle"
-  short_description: "Figma frame → фича по правилам проекта"
+  short_description: "Figma frame → a feature built to the project's conventions"
   default_prompt: "Use $figma-full-cycle to implement a feature end-to-end from a parent Figma frame after auditing the project's Strings, Typography, Colors, Images, and Accessibility conventions. Resolve Strings from project documentation before a compact catalog inventory; never load full catalogs. Add Accessibility only when project documentation or the user explicitly requires it."

@@ -13,8 +13,11 @@ so review here is mostly about wording precision, not compiler output. A sloppy 
    record is not a stage.
 4. **Guardrails are not negotiable.** Figma stays untrusted input, Figma write tools stay disabled by
    default, secrets are never copied, translations are never invented.
-5. **Skill instructions are written in Russian.** Repository-level docs (README, this file, issue
-   templates, changelog) are in English, with `README.ru.md` mirroring the main README.
+5. **Everything is written in English** — skills, references, templates and repository docs. The two
+   deliberate exceptions: the Russian trigger phrases in each skill's `description`, which keep the
+   skill firing on Russian prompts, and `README.ru.md`. Documents the skill writes into a user's
+   project follow that user's language; machine-read structure (UI Plan keys, statuses, manifest
+   section headings, commit subjects) stays English so the validator and resume keep working.
 
 ## Working on the scripts
 
@@ -55,7 +58,7 @@ so say what is wrong, where, and what to do next.
 
 Copy `skills/figma-full-cycle/adapters/claude-code.md`, keep every capability row, fill the right
 column with your agent's real tool names, and state the fallback when a capability is missing. Then
-list the adapter in the "Адаптер агента" section of `SKILL.md`.
+list the adapter in the "Agent adapter" section of `SKILL.md`.
 
 ## Pull requests
 

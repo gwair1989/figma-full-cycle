@@ -1,41 +1,41 @@
-# {{FEATURE_NAME}} — Спецификация фичи
+# {{FEATURE_NAME}} — Feature Spec
 
-Статус: **DRAFT (этап 1 — спека до вёрстки)**
-Источник дизайна: Figma файл `{{FILE_KEY}}` — frame `{{ROOT_NAME}}` (`{{ROOT_NODE_ID}}`), {{FRAME_COUNT}} фреймов = {{SCREEN_COUNT}} уникальных экранов.
-Точка входа: {{ENTRY_POINT}}.
-Точка выхода: {{EXIT_POINT}}.
+Status: **DRAFT (stage 1 — spec before implementation)**
+Design source: Figma file `{{FILE_KEY}}` — frame `{{ROOT_NAME}}` (`{{ROOT_NODE_ID}}`), {{FRAME_COUNT}} frames = {{SCREEN_COUNT}} unique screens.
+Entry point: {{ENTRY_POINT}}.
+Exit point: {{EXIT_POINT}}.
 
-## Легенда
+## Legend
 
-- **View** — имя SwiftUI View. Заполняется на этапе 2 (после вёрстки). Сейчас — предложенное имя в скобках.
-- **Логика** — черновик. `Data/API` помечено `TBD` — детализируется на этапе 3 (логика/сервисы).
-- **Ассеты** — node-id из Figma для импорта через skill `import-figma-assets` (этап 2).
-- Опечатки копирайта в дизайне помечены `⚠️ typo`; в коде — корректные строки через централизованный copy.
+- **View** — the SwiftUI View name. Filled in at stage 2 (after implementation). For now, the suggested name in parentheses.
+- **Logic** — a draft. `Data/API` marked `TBD` is detailed at stage 3 (logic and services).
+- **Assets** — Figma node-ids for import via the `import-figma-assets` skill (stage 2).
+- Copy typos present in the design are marked `⚠️ typo`; the code uses the corrected strings through the centralized copy mechanism.
 
-## Архитектурная заметка
+## Architecture note
 
 {{ARCH_NOTE}}
 
 ---
 
-## Экраны
+## Screens
 
-<!-- Повторить блок для каждого уникального экрана. -->
+<!-- Repeat this block for every unique screen. -->
 
 ### {{N}}. {{SCREEN_NAME}}
 
 - **Figma:** [{{NODE_ID}}]({{FIGMA_URL}}){{EXTRA_STATE_LINKS}}
-- **View:** _TBD_ (предл. `{{SUGGESTED_VIEW}}`)
-- **Описание:** {{DESCRIPTION}}
-- **Состояния:** {{STATES_OR_NONE}}
-- **Ассеты (import-figma-assets):**
-    - `{{ASSET_NODE_ID}}` — {{ASSET_DESC}} — {{raster|vector}} — предл. имя `{{ASSET_NAME}}`
-- **Логика (черновик):**
+- **View:** _TBD_ (suggested `{{SUGGESTED_VIEW}}`)
+- **Description:** {{DESCRIPTION}}
+- **States:** {{STATES_OR_NONE}}
+- **Assets (import-figma-assets):**
+    - `{{ASSET_NODE_ID}}` — {{ASSET_DESC}} — {{raster|vector}} — suggested name `{{ASSET_NAME}}`
+- **Logic (draft):**
     - **State:** {{STATE_DRAFT}}
     - **Actions:** {{ACTIONS_DRAFT}}
     - **Navigation:** {{NAV_DRAFT}}
     - **Data/API:** TBD
-- **Задачи вёрстки (этап 2):**
+- **Implementation tasks (stage 2):**
     - [ ] {{LAYOUT_TASK}}
 
 ---
@@ -47,19 +47,19 @@ flowchart TD
 {{NAV_MAP}}
 ```
 
-<!-- Рёбра, выведенные по догадке (не явные из дизайна), помечать `?` в подписи. -->
+<!-- Mark edges inferred by guesswork (not explicit in the design) with `?` in the label. -->
 
 ---
 
-## Открытые вопросы / допущения (подтвердить)
+## Open questions / assumptions (to confirm)
 
-<!-- Всё, что нельзя вывести из дизайна: обязательность полей, источник данных
-(API vs статик), зависимости полей, что заглушки, поведение back, выход из флоу. -->
+<!-- Everything the design cannot answer: required fields, data source (API vs static),
+field dependencies, what ships as a stub, back behavior, how the flow is exited. -->
 
 1. {{OPEN_QUESTION}}
 
-## Дальнейшие этапы
+## Following stages
 
-- **Этап 1 (сейчас):** утвердить эту спеку + ответы на открытые вопросы.
-- **Этап 2:** вёрстка UI (SwiftUI) по экранам → импорт ассетов, проставить реальные имена `View`.
-- **Этап 3:** логика — reducers, сервисы, permissions, API/справочники, submit.
+- **Stage 1 (now):** approve this spec plus the answers to the open questions.
+- **Stage 2:** implement the UI (SwiftUI) screen by screen → import assets, fill in the real `View` names.
+- **Stage 3:** logic — reducers, services, permissions, API and reference data, submit.

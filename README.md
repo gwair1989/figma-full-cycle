@@ -13,9 +13,11 @@ as eight gated stages, one commit per stage, with a tracked manifest as the sour
 ![Runtime deps: none](https://img.shields.io/badge/runtime%20deps-none-brightgreen)
 ![Target stack: SwiftUI + TCA](https://img.shields.io/badge/target-SwiftUI%20%2B%20TCA-orange)
 
-> **Language note.** The skill instructions and the documents it produces are written in Russian —
-> that is the working language of the pipeline. The repository docs are bilingual:
-> [README.ru.md](README.ru.md) is the Russian version of this page.
+> **Language note.** The skill, its references and its templates are English. Each skill's
+> `description` also keeps its Russian trigger phrases, so Russian prompts still fire it, and the
+> documents the skill writes into your project follow **your** language. Machine-read structure —
+> UI Plan keys, statuses, manifest headings, commit subjects — stays English so the validator and
+> resume keep working. [README.ru.md](README.ru.md) is the Russian version of this page.
 
 ---
 
@@ -48,7 +50,7 @@ A single "implement this Figma screen" prompt fails predictably on real features
 
 Two properties make this survivable in practice:
 
-- **Resume from any stage.** State lives on disk and is reconciled with git — `старт: этап N`,
+- **Resume from any stage.** State lives on disk and is reconciled with git — `start: stage N`,
   or just ask it to continue the feature.
 - **`ui-first` mode.** Design exists, the spec does not? Stages 0–6 run now; product questions are
   recorded as `deferred-to-spec` instead of blocking; stages 7–8 wait for the requirements.
@@ -99,19 +101,19 @@ Give the skill the link to the **parent** frame — the container holding every 
 not a single screen:
 
 ```text
-Сделай фичу по фигме целиком: https://figma.com/design/<fileKey>/App?node-id=1234-5678
+Full cycle from this Figma frame: https://figma.com/design/<fileKey>/App?node-id=1234-5678
 ```
 
 ```text
-Полный цикл по фрейму <url>, режим: ui-first — тз позже
+Implement the feature from <url>, mode: ui-first — requirements come later
 ```
 
 ```text
-Продолжи <FEATURE>, старт: этап 5
+Continue <FEATURE>, start: stage 5
 ```
 
-English triggers work too: *"full cycle from Figma frame"*, *"implement feature from Figma flow"*,
-*"UI first, logic later"*.
+Russian triggers fire it too — «сделай фичу по фигме», «полный цикл по фрейму», «сверстай экраны, тз
+позже» — and the documents it writes then come out in Russian. See [README.ru.md](README.ru.md).
 
 ### What it writes into your project
 

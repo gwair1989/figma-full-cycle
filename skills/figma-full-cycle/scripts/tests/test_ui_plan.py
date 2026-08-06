@@ -119,9 +119,27 @@ def manifest_text() -> str:
 
 ### Translation handoff batches
 
-| Batch | Copy IDs | Owner | Artifact / evidence | Merge policy / due | Статус |
+| Batch | Copy IDs | Owner | Artifact / evidence | Merge policy / due | Status |
 |-------|----------|-------|---------------------|--------------------|--------|
 | H1 | checkout.submit | localization | artifact.md | merge after verification | verified |
+
+## Sub-checklist: assets (stage 2)
+
+| Asset | node-id | Type | Status | Check |
+|-------|---------|------|--------|-------|
+| checkoutLogo | 12:30 | vector | done | exists |
+"""
+
+
+def legacy_russian_manifest() -> str:
+    """A manifest written from the pre-translation template, still in the wild."""
+    return """# Checkout — Pipeline manifest
+
+## Feature copy inventory (unique semantics only)
+
+| Copy ID | Source copy | Usages | Kind | Resource | Evidence | Translation | Source status |
+|---------|-------------|--------|------|----------|----------|-------------|---------------|
+| checkout.submit | Submit | checkout button | simple | App.xcstrings | lookup | none | verified |
 
 ## Под-чеклист: ассеты (этап 2)
 
@@ -423,7 +441,19 @@ class UIPlanCLITests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 1)
         self.assertIn("Feature copy inventory", result.stderr)
-        self.assertIn("Под-чеклист: ассеты", result.stderr)
+        self.assertIn("Sub-checklist: assets", result.stderr)
+
+    def test_legacy_russian_asset_heading_still_validates(self) -> None:
+        result = self.run_cli(
+            valid_plan(),
+            manifest=legacy_russian_manifest(),
+            project_files={
+                "Sources/DesignSystem/PrimaryButton.swift": "struct PrimaryButton {}",
+                "Sources/DesignSystem/Spacing.swift": "enum Spacing { static let m = 8 }",
+            },
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_manifest_headings_without_expected_tables_are_rejected(self) -> None:
         malformed_manifest = """# Checkout — Pipeline manifest
@@ -432,7 +462,7 @@ class UIPlanCLITests(unittest.TestCase):
 
 Inventory will be added later.
 
-## Под-чеклист: ассеты (этап 2)
+## Sub-checklist: assets (stage 2)
 
 Assets will be added later.
 """

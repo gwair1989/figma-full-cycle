@@ -1,22 +1,22 @@
-# <FEATURE> — runtime state (gitignored, не в PR)
+# <FEATURE> — runtime state (gitignored, never in a PR)
 
 - Worktree: <ABS_PATH>
 - Simulator UDID: <UDID>
 - Project/workspace: <PATH>
 - Scheme / configuration: <SCHEME> / <CONFIG>
 - DerivedData: <PATH>
-- Baseline build/test до изменений: <результат; известные исходные падения>
+- Baseline build/test before changes: <result; known pre-existing failures>
 - Strings owning scope: <ABS_PATH_OR_NONE>
 - Strings batched query / expected path::key entries files: <GITIGNORED_PATHS_OR_NONE>
 - UI Plan transient context / validator logs: <GITIGNORED_PATHS_OR_NONE>
 - Figma normalized node-evidence cache: <GITIGNORED_PATH_OR_NONE>
-- Figma MCP transient logs/download metadata: <GITIGNORED_PATHS_OR_NONE; NO_TEMP_URLS_IN_TRACKED_FILES>
-- Локальные ключи: только имена (значения не записывать)
+- Figma MCP transient logs / download metadata: <GITIGNORED_PATHS_OR_NONE; NO_TEMP_URLS_IN_TRACKED_FILES>
+- Local keys: names only (never write values)
 
-## Локальные метрики цикла
+## Local cycle metrics
 
-> Не переносить в tracked manifest. Заполнять по фактам выполнения; `n/a`, если среда не даёт метрику.
+> Never move these into the tracked manifest. Fill them from what actually happened; use `n/a` when the environment does not provide the metric.
 
-| Этап | Started | Finished | Duration | First-pass gate | Repair loops | Visual loop-backs | Figma read calls / cache hits | Notes |
-|------|---------|----------|----------|-----------------|--------------|-------------------|------------------------------|-------|
-| | | | | `<pass|fail|n/a>` | `0` | `0` | `<0 / 0>` | |
+| Stage | Started | Finished | Duration | First-pass gate | Repair loops | Visual loop-backs | Figma read calls / cache hits | Notes |
+|-------|---------|----------|----------|-----------------|--------------|-------------------|-------------------------------|-------|
+| | | | | `<pass\|fail\|n/a>` | `0` | `0` | `<0 / 0>` | |

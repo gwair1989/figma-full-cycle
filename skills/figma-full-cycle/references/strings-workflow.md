@@ -1,64 +1,64 @@
-# Strings Workflow: documentation-first и с ограниченным контекстом
+# Strings Workflow: documentation-first and context-bounded
 
-Прочитать полностью, когда фича затрагивает видимый пользователю copy или когда Strings-строка аудита ещё не разрешена. Цель — соблюдать механизм конкретного проекта и не загружать в контекст целые `*.xcstrings`, `*.strings` или `*.stringsdict`.
+Read in full when a feature touches user-visible copy, or when the Strings row of the audit is still unresolved. The goal is to follow the specific project's mechanism without loading whole `*.xcstrings`, `*.strings` or `*.stringsdict` files into context.
 
-## Неподвижные правила
+## Fixed rules
 
-1. Проектная документация определяет механизм Strings. Этот workflow не выбирает самостоятельно формат, catalog/table, bundle, API, стиль ключей, extraction mode, generated symbols, source locale, набор локалей или владельца переводов.
-2. Приоритет: применимые project instructions → документация проекта → уже разрешённый Strings-контракт в manifest → однозначный существующий механизм → baseline скилла.
-3. Helper `scripts/localization_context.py` только читает и агрегирует. Он локально парсит resource bytes, но наружу отдаёт bounded summary — catalog bytes не попадают в модельный контекст. Helper не изменяет каталоги, не придумывает ключи/переводы и не заменяет build проекта.
-4. Полный каталог, полный `git diff` каталога и все переводы не передавать модели или subagent'ам. По умолчанию нужны только счётчики, точечные совпадения и key-level diff.
-5. Не мигрировать `.strings` в `.xcstrings`, не создавать второй localization-путь и не включать generated symbols/extraction settings в рамках фичи, если это явно не предписано проектом.
+1. Project documentation decides the Strings mechanism. This workflow never picks the format, catalog/table, bundle, API, key style, extraction mode, generated symbols, source locale, locale set or translation owner on its own.
+2. Priority: applicable project instructions → project documentation → the Strings contract already resolved in the manifest → an unambiguous existing mechanism → the skill's baseline.
+3. The helper `scripts/localization_context.py` only reads and aggregates. It parses resource bytes locally but emits a bounded summary — catalog bytes never enter the model's context. The helper never modifies catalogs, never invents keys or translations, and never replaces the project build.
+4. Never hand the model or a subagent a full catalog, a full catalog `git diff`, or all translations. By default only counts, targeted matches and a key-level diff are needed.
+5. Do not migrate `.strings` to `.xcstrings`, do not create a second localization path, and do not enable generated symbols or extraction settings inside a feature unless the project explicitly prescribes it.
 
-## 1. Сначала разрешить Strings-контракт
+## 1. Resolve the Strings contract first
 
-До чтения Figma и до inventory найти правила Strings в порядке из `project-ui-conventions.md`: `AGENTS.md`/`CLAUDE.md`, `README*`, `CONTRIBUTING*`, `docs/**`, документация owning target/module/package. Искомые термины: `String Catalog`, `xcstrings`, `Localizable.strings`, `stringsdict`, `localization`, `table`, `bundle`, `LocalizedStringResource`, `String(localized:)`, `NSLocalizedString`, `SWIFT_EMIT_LOC_STRINGS`, `STRING_CATALOG_GENERATE_SYMBOLS`, `generated symbols`, `source language`, `translation`.
+Before reading Figma and before the inventory, find the Strings rules in the order given by `project-ui-conventions.md`: `AGENTS.md`/`CLAUDE.md`, `README*`, `CONTRIBUTING*`, `docs/**`, documentation of the owning target/module/package. Terms to search for: `String Catalog`, `xcstrings`, `Localizable.strings`, `stringsdict`, `localization`, `table`, `bundle`, `LocalizedStringResource`, `String(localized:)`, `NSLocalizedString`, `SWIFT_EMIT_LOC_STRINGS`, `STRING_CATALOG_GENERATE_SYMBOLS`, `generated symbols`, `source language`, `translation`.
 
-Записать в manifest компактный контракт:
+Record a compact contract in the manifest:
 
-- точные источники документации: path + section/symbol;
-- разрешённый механизм: `xcstrings-auto`, `xcstrings-manual`, `xcstrings-generated-symbols`, `strings`, `strings+stringsdict` или проектный вариант;
-- owning target/module, resource path, catalog/table и bundle;
-- разрешённые API и стиль ключей;
-- для opaque/generated keys — документированный allocator/naming source; если новый key нельзя однозначно получить, `conflict` до реализации;
-- extraction mode и generated-symbol policy;
-- source locale, поддерживаемые локали и правила fallback;
-- кто создаёт/проверяет переводы и разрешено ли агенту их писать;
-- правила comments/placeholders, кто создаёт plural/device variation structure, и validation/build;
-- статус сопоставления с baseline скилла.
+- exact documentation sources: path + section/symbol;
+- the permitted mechanism: `xcstrings-auto`, `xcstrings-manual`, `xcstrings-generated-symbols`, `strings`, `strings+stringsdict`, or a project-specific variant;
+- owning target/module, resource path, catalog/table and bundle;
+- permitted APIs and key style;
+- for opaque or generated keys — the documented allocator or naming source; if a new key cannot be derived unambiguously, `conflict` before implementation;
+- extraction mode and generated-symbol policy;
+- source locale, supported locales and fallback rules;
+- who creates and reviews translations, and whether the agent may write them;
+- rules for comments, placeholders, who creates plural/device variation structure, and validation/build;
+- the status of the mapping onto the skill's baseline.
 
-Если документация отвечает не на всё, проверять только недостающие пункты по build settings, существующим ресурсам и 2–3 репрезентативным call sites. Помечать это `inferred-from-code`, а не выдавать за документированное правило. Если нет ни документированного правила, ни однозначного существующего механизма, поставить `conflict` и спросить до первой новой user-facing строки.
+If documentation does not answer everything, check only the missing points against build settings, existing resources and 2–3 representative call sites. Mark that `inferred-from-code` rather than presenting it as a documented rule. If there is neither a documented rule nor an unambiguous existing mechanism, set `conflict` and ask before the first new user-facing string.
 
-Accessibility copy входит в Strings-контракт только при активном Accessibility-контракте. Baseline Accessibility `no-add` не создаёт labels/hints и соответствующие ключи.
+Accessibility copy enters the Strings contract only under an active Accessibility contract. The `no-add` Accessibility baseline creates no labels, hints or their keys.
 
-## 2. Один компактный inventory вместо чтения каталогов
+## 2. One compact inventory instead of reading catalogs
 
-После разрешения документации выполнить один inventory из корня или минимального owning scope:
+Once documentation is resolved, run one inventory from the repository root or the minimal owning scope:
 
 ```bash
 python3 <skill-root>/scripts/localization_context.py inventory --root <repo-or-owning-scope>
 ```
 
-По умолчанию команда не печатает ключи и значения. В manifest сохранить только: paths/types, counts, source locale, locales, detected key style, variation/extraction-state counts и parse errors. `--samples` не использовать, если конкретные примеры не нужны для неразрешённого пункта контракта; тогда задать малое число явно.
+By default the command prints no keys and no values. Record only this in the manifest: paths/types, counts, source locale, locales, detected key style, variation and extraction-state counts, and parse errors. Do not use `--samples` unless concrete examples are needed for an unresolved contract point; then pass a small explicit number.
 
-Inventory подтверждает фактический механизм, но не отменяет документацию. При расхождении документации и ресурсов поставить `conflict` или явно разрешённое `project-specific` решение — не угадывать.
+The inventory confirms the actual mechanism but never overrides documentation. Where documentation and resources disagree, set `conflict` or an explicitly resolved `project-specific` decision — do not guess.
 
-## 3. Один feature copy inventory
+## 3. One feature copy inventory
 
-На этапе 1 собрать copy всех экранов и состояний один раз. Одна строка таблицы = одна уникальная семантическая единица, а не одно визуальное вхождение. Для каждой единицы хранить:
+At stage 1, collect the copy of every screen and state once. One table row = one unique semantic unit, not one visual occurrence. For each unit keep:
 
-- `copy_id`, source copy и все usages (`screen/state/control`);
+- `copy_id`, the source copy and all usages (`screen/state/control`);
 - kind: simple / interpolation / plural / variant;
-- параметры и translator context;
-- предполагаемые catalog/table только из Strings-контракта;
-- найденный existing key/symbol или статус `new`;
-- статус `reuse / new / TBD / implemented / verified`.
+- parameters and translator context;
+- the intended catalog/table, taken from the Strings contract only;
+- the existing key/symbol found, or the status `new`;
+- status `reuse / new / TBD / implemented / verified`.
 
-Дедуплицировать только одинаковый смысл и translator context. Одинаковый текст с разным смыслом может требовать разных ключей; разные Figma-вхождения одного смысла должны переиспользовать одну запись. Опечатку/расхождение copy зафиксировать один раз, не размножать по экранам.
+Deduplicate only identical meaning with identical translator context. The same text with a different meaning may need different keys; different Figma occurrences of the same meaning must reuse one entry. Record a typo or copy discrepancy once, never once per screen.
 
-## 4. Один batched lookup
+## 4. One batched lookup
 
-Сделать один lookup по всем уникальным source values и известным ключам. Для больших наборов использовать newline/JSON query file в gitignored runtime, а не много отдельных поисков:
+Run one lookup across all unique source values and known keys. For large sets, use a newline or JSON query file in the gitignored runtime rather than many separate searches:
 
 ```bash
 python3 <skill-root>/scripts/localization_context.py lookup \
@@ -68,26 +68,26 @@ python3 <skill-root>/scripts/localization_context.py lookup \
   --source-locale <documented-source-locale>
 ```
 
-Перед вызовом дедуплицировать query: передавать только непустые файлы и не повторять natural-language строку одновременно как key и value, если проект не разделяет stable key/default value. Lookup по умолчанию возвращает только catalog, key, kind, locales, extraction state и короткий comment. Значения включать только для нужной source/target locale через `--show-values --locale <locale>`. `--contains` использовать лишь для узкого расследования; широкий substring-поиск быстро создаёт шум. Default `--limit 20`; `MATCHES_TRUNCATED` не считается полным gate — сузить owning scope/table или осознанно поднять limit, пока каждая строка feature copy inventory не получит явный результат. Каталог целиком не печатать.
+Deduplicate the query before the call: pass only non-empty files, and do not repeat a natural-language string as both key and value unless the project separates stable key from default value. By default the lookup returns only catalog, key, kind, locales, extraction state and a short comment. Include values only for the needed source or target locale via `--show-values --locale <locale>`. Use `--contains` only for a narrow investigation; a wide substring search creates noise fast. The default is `--limit 20`; `MATCHES_TRUNCATED` is not a passed gate — narrow the owning scope or table, or deliberately raise the limit, until every feature copy inventory row has an explicit result. Never print a whole catalog.
 
-Результат lookup свести в feature copy inventory. Не сохранять сырой вывод или весь catalog в manifest.
+Fold the lookup result into the feature copy inventory. Do not store raw output or a whole catalog in the manifest.
 
-## 5. Одна batched-реализация по механизму проекта
+## 5. One batched implementation, following the project's mechanism
 
-После утверждения inventory внести Strings-изменения одним логическим batch, а не по экрану и не с build после каждой строки.
+Once the inventory is approved, make the Strings changes in one logical batch — not per screen, and not with a build after every string.
 
-- `xcstrings-auto`: сначала использовать разрешённые localizable API в коде, затем один extraction/project build согласно документации. Этот успешный build одновременно служит stage build; не повторять его без последующих изменений. Не добавлять вручную запись, которую проект/Xcode извлекает из кода.
-- `xcstrings-manual` или generated symbols: применять только проектный generator/editor/workflow и naming. Не включать build settings и не изобретать symbol names. После добавления выполнить один generation/build cycle, если это требует проект.
-- `Localizable.strings`: менять только разрешённые table/bundle и минимальный набор ожидаемых ключей. Для plural использовать существующий проектный `.stringsdict`-механизм; не мигрировать формат ради фичи.
-- Интерполяцию/placeholders/variants задавать согласно контракту; не собирать локализуемые предложения конкатенацией фрагментов.
-- Auto-extraction строки с параметром не даёт автоматического разрешения редактировать plural/device variations: создавать их только если Strings-контракт назначает это агенту, иначе включить в translation handoff.
-- Не придумывать переводы и не копировать source value во все локали. Добавлять target-locale значения только если документация проекта прямо разрешает агенту это делать и предоставлен проверяемый перевод. Иначе одним batch записать translation owner, handoff artifact/status и допустимость merge с pending translations по правилам проекта.
+- `xcstrings-auto`: use the permitted localizable APIs in code first, then run one extraction/project build as documented. That successful build doubles as the stage build; do not repeat it without further changes. Never hand-add an entry that the project or Xcode extracts from code.
+- `xcstrings-manual` or generated symbols: use only the project's generator, editor, workflow and naming. Do not flip build settings and do not invent symbol names. After adding entries, run one generation/build cycle if the project requires it.
+- `Localizable.strings`: touch only the permitted table and bundle and the minimal set of expected keys. For plurals use the project's existing `.stringsdict` mechanism; do not migrate the format for a feature.
+- Define interpolation, placeholders and variants per the contract; never assemble localizable sentences by concatenating fragments.
+- Auto-extraction of a parameterized string is not automatic permission to edit plural or device variations: create them only when the Strings contract assigns that to the agent; otherwise include them in the translation handoff.
+- Do not invent translations and do not copy the source value into every locale. Add target-locale values only when project documentation explicitly permits the agent to do so and a verifiable translation exists. Otherwise record, in one batch, the translation owner, the handoff artifact and status, and whether merging with pending translations is allowed by project rules.
 
-В контекст worker/subagent передавать только Strings-контракт и его строки feature copy inventory. Каталог целиком не передавать; worker не выбирает новые ключи или таблицы самостоятельно.
+Pass only the Strings contract and its feature copy inventory rows into a worker or subagent context. Never pass the catalog; a worker does not choose new keys or tables on its own.
 
-## 6. Key-level gate вместо полного diff
+## 6. A key-level gate instead of a full diff
 
-После batch-изменения проверить только localization-файлы, затронутые с base SHA этапа, и только ожидаемые feature keys:
+After the batched change, check only the localization files touched since the stage's base SHA, and only the expected feature keys:
 
 ```bash
 python3 <skill-root>/scripts/localization_context.py diff \
@@ -102,38 +102,38 @@ python3 <skill-root>/scripts/localization_context.py validate \
   --xcode
 ```
 
-Expected entries — точный набор физически затронутых пар `repo-relative-path::key`, по одной строке в newline/JSON array; reuse без изменения туда не включать. Path записывать относительно git root ровно как в `FILE path=`. Это сохраняет связь key→catalog/locale и не позволяет правильному key попасть в чужой ресурс. Для единственного файла допустима короткая форма `--keys-file` + `--paths-file`, но для нескольких paths path-qualified entries обязательны. Новый localization-файл по умолчанию запрещён и требует документированного разрешения плюс явный `--expected-added-path <repo-relative-path>`; удаление не разрешается. Если ожидается ноль key changes, использовать отдельный `--expect-no-key-changes`, не смешивая его с expectations.
+Expected entries are the exact set of physically touched `repo-relative-path::key` pairs, one per line in a newline or JSON array; unchanged reuse does not belong there. Write the path relative to the git root exactly as it appears in `FILE path=`. This preserves the key→catalog/locale link and stops a correct key from landing in the wrong resource. For a single file the short form `--keys-file` + `--paths-file` is acceptable, but with several paths, path-qualified entries are mandatory. A new localization file is forbidden by default and requires documented permission plus an explicit `--expected-added-path <repo-relative-path>`; deletion is never permitted. When zero key changes are expected, use the separate `--expect-no-key-changes` instead of mixing it with expectations.
 
-`diff --strict` блокирует removals, missing/unexpected path-qualified entries, незаявленный file lifecycle, translator-comment removal, raw/order/format churn и catalog-level metadata edits. `validate` проверяет parse/duplicate keys, базовую `.stringsdict` schema, legacy plist syntax и, с `--xcode`, запускает доступный `xcstringstool compile --dry-run` для изменённых `.xcstrings`. Один реальный project build и проектные localization tests/lint выполнить в порядке, требуемом механизмом: auto-extraction build идёт до diff и переиспользуется как gate evidence; manual resources обычно валидируются до build. Не запускать второй build, если после успешного extraction/project build ничего не менялось. Project build остаётся источником истины для placeholder/value-type и project-specific variant rules. Полный raw diff открывать только для конкретной ошибки и узкого key/file fragment.
+`diff --strict` blocks removals, missing or unexpected path-qualified entries, undeclared file lifecycle, translator-comment removal, raw/order/format churn and catalog-level metadata edits. `validate` checks parsing and duplicate keys, the basic `.stringsdict` schema and legacy plist syntax, and with `--xcode` runs an available `xcstringstool compile --dry-run` for changed `.xcstrings`. Run one real project build and the project's localization tests or lint in the order the mechanism requires: an auto-extraction build comes before the diff and is reused as gate evidence; manual resources are usually validated before the build. Do not run a second build when nothing changed after a successful extraction/project build. The project build stays the source of truth for placeholder/value-type and project-specific variant rules. Open the full raw diff only for a specific error and a narrow key or file fragment.
 
-Gate завершён, когда:
+The gate is complete when:
 
-- затронуты только expected feature keys и разрешённые ресурсы;
-- auto-extraction не затронул чужие stale keys; их нельзя молча добавлять в expected allowlist;
-- нет удалений, неожиданных metadata edits, parse/duplicate/format ошибок;
-- generated extraction/symbol state соответствует документированному механизму;
-- build/tests проходят;
-- feature copy inventory помечен `verified`, а evidence содержит только краткие итоги команд.
+- only expected feature keys and permitted resources were touched;
+- auto-extraction did not touch unrelated stale keys — they must never be silently added to the expected allowlist;
+- there are no removals, unexpected metadata edits, or parse/duplicate/format errors;
+- the generated extraction and symbol state matches the documented mechanism;
+- build and tests pass;
+- the feature copy inventory is marked `verified`, and the evidence contains only short command summaries.
 
-Если translation handoff ещё pending, техническое `verified` source-ресурса не означает готовность переводов. Этап 6 использует только разрешённые документацией target locales, sanctioned pseudolocale/fixtures или фиксирует ожидающий translation gate/waiver; агент не генерирует подменные переводы ради визуальной проверки.
+If the translation handoff is still pending, a technically `verified` source resource does not mean the translations are ready. Stage 6 uses only the target locales permitted by documentation, a sanctioned pseudolocale or fixtures, or records a pending translation gate or waiver; the agent never generates substitute translations for a visual check.
 
-## 7. Resume и stale без повторной оплаты
+## 7. Resume and stale without paying twice
 
-В manifest хранить `STRINGS_BASE_SHA`, paths/sections документации, compact inventory summary и feature copy inventory. При resume:
+Keep `STRINGS_BASE_SHA`, documentation paths and sections, the compact inventory summary and the feature copy inventory in the manifest. On resume:
 
-1. Если документация Strings изменилась — заново разрешить только Strings-контракт.
-2. Если изменились catalogs/build settings/mechanism — повторить compact inventory и один lookup только по feature keys/values.
-3. Если они не менялись — использовать записанный контракт и inventory; не сканировать/читать каталоги повторно.
-4. После loop-back UI обновить только затронутые copy rows и снова выполнить один batched lookup/diff.
+1. If the Strings documentation changed — re-resolve the Strings contract only.
+2. If catalogs, build settings or the mechanism changed — repeat the compact inventory and one lookup for feature keys and values only.
+3. If neither changed — use the recorded contract and inventory; do not rescan or re-read the catalogs.
+4. After a UI loop-back, update only the affected copy rows and run one batched lookup/diff again.
 
-## Запрещённые дорогие паттерны
+## Forbidden expensive patterns
 
-- `cat`/полное чтение `.xcstrings`, всех `.strings` или полного catalog diff в модель;
-- повторный repo-wide search, lookup или build для каждой строки/экрана;
-- передача catalog blob нескольким subagent'ам;
-- ручное редактирование auto-extracted записи до изменения кода;
-- массовая перезапись JSON/plist, сортировка всего catalog или «cleanup» чужих keys;
-- генерация переводов без разрешённой проектной политики.
+- `cat` or full reads of `.xcstrings`, of every `.strings`, or of a full catalog diff into the model;
+- repeated repo-wide search, lookup or build per string or per screen;
+- passing a catalog blob to several subagents;
+- hand-editing an auto-extracted entry before the code change;
+- mass rewriting of JSON/plist, sorting a whole catalog, or "cleaning up" unrelated keys;
+- generating translations without a permitting project policy.
 
 ## Apple references
 

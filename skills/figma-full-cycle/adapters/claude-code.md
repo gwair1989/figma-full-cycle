@@ -1,48 +1,48 @@
 # Adapter: Claude Code
 
-Маппинг capability из ядра (`../SKILL.md`) на инструменты Claude Code.
+Maps the core capabilities (`../SKILL.md`) onto Claude Code tools.
 
 ## Capability map
 
 | Capability | Claude Code |
 |---|---|
-| Вызов под-скилла | `Skill` tool |
-| Проверка доступности Figma MCP | `ToolSearch("figma")` + реальный `get_metadata` по распарсенному parent node (сервер бывает «connecting»); записать transport и фактические capabilities; `whoami` — только при access/permission/rate-limit ошибке |
-| Вопрос пользователю | `AskUserQuestion`, батч ≤4 вопросов на вызов; больше — несколько вызовов |
-| Subagent explorer | `Explore` (Figma-инспекция, сверка) / `caveman:cavecrew-investigator` (поиск по коду) |
-| Subagent worker | `general-purpose` с явным списком назначенных файлов |
-| Worktree создать/убрать | `EnterWorktree` / `ExitWorktree` или `superpowers:using-git-worktrees` |
-| Build defaults показать/задать | xcodebuildmcp `session_show_defaults` / `session_set_defaults` (сначала показать, потом менять) |
-| Build / test / run | `build_sim` / `test_sim` / `build_run_sim` (сам бутит симулятор) |
-| Список симуляторов | `list_sims`; в defaults задавать `simulatorId` (UDID), не имя |
-| UI-инпут симулятора | `snapshot_ui` → `tap`/`swipe` по `elementRef` (координаты не принимаются) |
-| Figma read acquisition | `get_metadata` один раз для карты parent; scoped `get_design_context` — primary child read; `get_screenshot`, `get_variable_defs`, optional `get_code_connect_map` / `get_motion_context` — только по evidence gaps; `download_assets` — этап 2 |
-| Figma write boundary | `use_figma`, `add_code_connect_map`, `send_code_connect_mappings`, `upload_assets`, `create_new_file`, `generate_figma_design` не вызывать без отдельной явной просьбы пользователя изменить Figma |
-| Compact Strings inspection | `python3 <skill-root>/scripts/localization_context.py` (read-only `inventory/lookup/diff/validate`; root — repo/owning scope) |
-| UI Plan validation | `python3 <skill-root>/scripts/ui_plan.py validate --plan <PLAN> --manifest <MANIFEST> --project-root <REPO> --phase <ui|production>` |
-| Финализация ветки | `superpowers:finishing-a-development-branch` — выбор (PR / merge / оставить) делает пользователь |
+| Call a sub-skill | `Skill` tool |
+| Check Figma MCP availability | `ToolSearch("figma")` + a real `get_metadata` on the parsed parent node (the server is sometimes "connecting"); record transport and the actual capabilities; `whoami` only on an access/permission/rate-limit error |
+| Ask the user | `AskUserQuestion`, batches of ≤4 questions per call; more than that → several calls |
+| Subagent explorer | `Explore` (Figma inspection, comparison) / `caveman:cavecrew-investigator` (code search) |
+| Subagent worker | `general-purpose` with an explicit list of assigned files |
+| Create/remove a worktree | `EnterWorktree` / `ExitWorktree` or `superpowers:using-git-worktrees` |
+| Show/set build defaults | xcodebuildmcp `session_show_defaults` / `session_set_defaults` (show first, then change) |
+| Build / test / run | `build_sim` / `test_sim` / `build_run_sim` (boots the simulator itself) |
+| List simulators | `list_sims`; set `simulatorId` (UDID) in defaults, never a name |
+| Simulator UI input | `snapshot_ui` → `tap`/`swipe` by `elementRef` (coordinates are not accepted) |
+| Figma read acquisition | `get_metadata` once for the parent map; scoped `get_design_context` as the primary child read; `get_screenshot`, `get_variable_defs`, optional `get_code_connect_map` / `get_motion_context` only for evidence gaps; `download_assets` at stage 2 |
+| Figma write boundary | never call `use_figma`, `add_code_connect_map`, `send_code_connect_mappings`, `upload_assets`, `create_new_file`, `generate_figma_design` without a separate explicit user request to modify Figma |
+| Compact Strings inspection | `python3 <skill-root>/scripts/localization_context.py` (read-only `inventory/lookup/diff/validate`; root = the repo or owning scope) |
+| UI Plan validation | `python3 <skill-root>/scripts/ui_plan.py validate --plan <PLAN> --manifest <MANIFEST> --project-root <REPO> --phase <ui\|production>` |
+| Finalize the branch | `superpowers:finishing-a-development-branch` — the user makes the choice (PR / merge / leave it) |
 
-## Скиллы этапов
+## Stage skills
 
-| Этап | Скилл | Fallback |
+| Stage | Skill | Fallback |
 |---|---|---|
-| 1 | `figma-feature-spec` | нет Figma MCP → блокер |
+| 1 | `figma-feature-spec` | no Figma MCP → blocker |
 | 2 | `import-figma-assets` | — |
-| 3 | Зарегистрированный официальный `figma-design-to-code` (включая фактический namespaced catalog alias) — обязательный workflow-prerequisite; в `skillNames` всё равно передать canonical `figma-design-to-code` либо resource-prefixed form. Зарегистрированный `figma-swiftui` — дополнительный SwiftUI translator. Затем `pfw-modern-swiftui` + `swiftui-ui-patterns` + `pfw-composable-architecture`. Context: `clientLanguages=swift`, `clientFrameworks=swiftui`; exact mapping label — только `codeConnectLabel` отдельного `get_code_connect_map` | official generic отсутствует → не подделывать `skillNames`, использовать зарегистрированный `figma-implement-design`; `figma-swiftui` отсутствует → generic/fallback + SwiftUI-скиллы проекта |
+| 3 | The registered official `figma-design-to-code` (including the actual namespaced catalog alias) is a mandatory workflow prerequisite; still pass the canonical `figma-design-to-code` or its resource-prefixed form in `skillNames`. A registered `figma-swiftui` is an additional SwiftUI translator. Then `pfw-modern-swiftui` + `swiftui-ui-patterns` + `pfw-composable-architecture`. Context: `clientLanguages=swift`, `clientFrameworks=swiftui`; the exact mapping label goes only into `codeConnectLabel` of a separate `get_code_connect_map` | no official generic → do not fake `skillNames`, use the registered `figma-implement-design`; no `figma-swiftui` → generic/fallback + the project's SwiftUI skills |
 | 4 | `swiftui-view-refactor` | — |
 | 5 | `design-compare` | — |
-| 7 | `pfw-composable-architecture` + `pfw-testing` | не-TCA → скилл стека проекта |
+| 7 | `pfw-composable-architecture` + `pfw-testing` | non-TCA → the project's stack skill |
 | 8 | `swift-code-reviewer-skill` | `/code-review` |
 
-## Preflight-чеклист
+## Preflight checklist
 
-- [ ] До Figma-вызовов выполнен read-only аудит Strings / Typography / Colors / Images / Accessibility по `../references/project-ui-conventions.md`; пять строк контракта готовы для переноса в manifest. Для Strings сначала прочитана документация и разрешён контракт из `../references/strings-workflow.md`, затем один compact inventory без catalog dump. Accessibility без явного требования → `skill-fallback: no-add`.
-- [ ] Полностью прочитан `../references/figma-mcp-acquisition.md`; transport/read capabilities/optional capabilities/target/write=`disabled` готовы для manifest.
-- [ ] Figma URL локально распарсен; `fileKey` и `node-id` известны до пробного реального вызова.
-- [ ] Наличие official generic и SwiftUI translator проверено независимо; зарегистрированный `figma-design-to-code` загружен до первого context call и только тогда попадает в `skillNames` (с `resource:` при MCP-resource загрузке), иначе выбран документированный fallback.
-- [ ] UI Plan template/validator доступны; self-check проходит: `python3 <skill-root>/scripts/ui_plan.py validate --plan <skill-root>/templates/UI_PLAN.template.json --phase ui --allow-placeholders`.
-- [ ] Figma MCP: `ToolSearch("figma")` + metadata-first вызов по parent node. Code Connect/motion недоступны → записан `degraded` fallback, а не ложный общий blocker; Figma write-tools не вызваны.
-- [ ] xcodebuildmcp: `session_show_defaults` отвечает.
-- [ ] `FIGMA_ACCESS_TOKEN` доступен (этап 5) — иначе записать блокером этапа 5.
+- [ ] Before any Figma call, the read-only audit of Strings / Typography / Colors / Images / Accessibility per `../references/project-ui-conventions.md` is done; the five contract lines are ready to move into the manifest. For Strings, documentation was read and the contract resolved from `../references/strings-workflow.md` first, then one compact inventory without a catalog dump. Accessibility without an explicit requirement → `skill-fallback: no-add`.
+- [ ] `../references/figma-mcp-acquisition.md` has been read in full; transport / read capabilities / optional capabilities / target / write=`disabled` are ready for the manifest.
+- [ ] The Figma URL is parsed locally; `fileKey` and `node-id` are known before the first real call.
+- [ ] The presence of the official generic skill and of the SwiftUI translator was verified independently; a registered `figma-design-to-code` is loaded before the first context call and only then appears in `skillNames` (with `resource:` when loaded as an MCP resource); otherwise a documented fallback was selected.
+- [ ] UI Plan template and validator are available; the self-check passes: `python3 <skill-root>/scripts/ui_plan.py validate --plan <skill-root>/templates/UI_PLAN.template.json --phase ui --allow-placeholders`.
+- [ ] Figma MCP: `ToolSearch("figma")` + a metadata-first call on the parent node. Code Connect or motion unavailable → record a `degraded` fallback, not a false global blocker; no Figma write tool was called.
+- [ ] xcodebuildmcp: `session_show_defaults` responds.
+- [ ] `FIGMA_ACCESS_TOKEN` is available (stage 5) — otherwise record it as a stage 5 blocker.
 
-Отсутствующее без fallback — одним списком в `AskUserQuestion`.
+Everything missing without a fallback goes out as one list in `AskUserQuestion`.
