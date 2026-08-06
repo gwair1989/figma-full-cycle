@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "feature": "<FEATURE>",
+  "figma_pin": {
+    "file_key": "<FILE_KEY>",
+    "parent_node_id": "<PARENT_NODE_ID>",
+    "version": "<VERSION_OR_HASH>"
+  },
+  "project_contract": {
+    "manifest": "docs/<FEATURE>_PIPELINE.md",
+    "checked_base": "<BASE_SHA>"
+  },
+  "screens": [
+    {
+      "id": "<SCREEN_ID>",
+      "name": "<SCREEN_NAME>",
+      "figma_nodes": [
+        {
+          "node_id": "<NODE_ID>",
+          "state": "default"
+        }
+      ],
+      "view": {
+        "symbol": "<VIEW_SYMBOL>",
+        "path": "<PROJECT_RELATIVE_VIEW_PATH>",
+        "status": "new"
+      },
+      "layout": [
+        {
+          "id": "root",
+          "parent": null,
+          "relation": "root",
+          "component": {
+            "symbol": "<ROOT_COMPONENT_SYMBOL>",
+            "kind": "project",
+            "source_ref": {
+              "path": "<PROJECT_RELATIVE_COMPONENT_PATH>",
+              "symbol": "<ROOT_COMPONENT_SYMBOL>"
+            }
+          },
+          "tokens": [
+            {
+              "symbol": "<TOKEN_SYMBOL>",
+              "kind": "project",
+              "source_ref": {
+                "path": "<PROJECT_RELATIVE_TOKEN_PATH>",
+                "symbol": "<TOKEN_OWNER_SYMBOL>"
+              }
+            }
+          ]
+        }
+      ],
+      "copy": [
+        {
+          "copy_id": "<COPY_ID>",
+          "usage": "<USAGE>",
+          "status": "resolved"
+        }
+      ],
+      "assets": [
+        {
+          "node_id": "<ASSET_NODE_ID>",
+          "name": "<ASSET_NAME>",
+          "status": "resolved"
+        }
+      ],
+      "states": [
+        {
+          "id": "default",
+          "source": "figma",
+          "status": "resolved"
+        }
+      ],
+      "interactions": [
+        {
+          "id": "<INTERACTION_ID>",
+          "from": "default",
+          "to": "<TARGET_STATE_OR_SCREEN>",
+          "source": "tbd",
+          "status": "tbd",
+          "merge_blocking": true,
+          "waiver": null
+        }
+      ],
+      "sources": [
+        {
+          "kind": "figma",
+          "ref": "<NODE_ID>"
+        },
+        {
+          "kind": "project-doc",
+          "ref": "<PATH_AND_SECTION>"
+        }
+      ],
+      "unknowns": [
+        {
+          "id": "<UNKNOWN_ID>",
+          "question": "<QUESTION>",
+          "status": "open",
+          "merge_blocking": true,
+          "waiver": null
+        }
+      ]
+    }
+  ]
+}

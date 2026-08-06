@@ -1,0 +1,35 @@
+name: Proposal
+description: A new stage, gate, adapter, or guardrail
+labels: ["proposal"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The failure you keep hitting
+      description: Describe the concrete situation, not the desired feature.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What the skill should do instead
+    validations:
+      required: true
+  - type: input
+    id: gate
+    attributes:
+      label: How would it be proven?
+      description: Every stage change needs a gate — a real command with real evidence.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Kind
+      options:
+        - New or changed stage
+        - New or changed gate
+        - New agent adapter
+        - Guardrail / safety
+        - Scripts and validation
+        - Docs
+    validations:
+      required: true

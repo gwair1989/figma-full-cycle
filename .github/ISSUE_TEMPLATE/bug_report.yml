@@ -1,0 +1,55 @@
+name: Bug report
+description: A stage misbehaved, a gate lied, or the agent did something the skill forbids
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please redact Figma file keys, tokens, and anything else private — issues are public.
+  - type: dropdown
+    id: agent
+    attributes:
+      label: Agent
+      options:
+        - Claude Code
+        - Codex
+        - Other (say which below)
+    validations:
+      required: true
+  - type: dropdown
+    id: stage
+    attributes:
+      label: Stage
+      options:
+        - "0 — worktree"
+        - "1 — spec + UI plan"
+        - "2 — assets"
+        - "3 — UI + TCA skeleton"
+        - "4 — UI refactor"
+        - "5 — design diff"
+        - "6 — adaptivity"
+        - "7 — reducer logic"
+        - "8 — final review"
+        - "preflight / convention audit"
+        - "scripts (ui_plan.py, localization_context.py)"
+        - "not stage-specific"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happened
+      description: Include the gate output or diagnostic if there was one.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Project stack, Figma MCP transport, Python version, anything unusual in the setup.

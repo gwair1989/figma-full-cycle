@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: How the pipeline works
+    url: https://github.com/gwair1989/figma-full-cycle#the-pipeline
+    about: Stage list, gates, and what the skill writes into your project.
+  - name: Contributing guide
+    url: https://github.com/gwair1989/figma-full-cycle/blob/main/CONTRIBUTING.md
+    about: Ground rules before opening a pull request.
