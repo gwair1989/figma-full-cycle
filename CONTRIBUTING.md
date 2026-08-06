@@ -21,11 +21,24 @@ so review here is mostly about wording precision, not compiler output. A sloppy 
 `scripts/ui_plan.py` and `scripts/localization_context.py` are read-only CLIs on the Python standard
 library. Keep it that way — the skill has to run wherever the agent runs, with no install step.
 
-Run the tests before opening a PR:
+Run the checks before opening a PR:
 
 ```bash
-python3 skills/figma-full-cycle/scripts/tests/test_ui_plan.py
+./check.sh
 ```
+
+`check.sh` runs the validator tests on every Python 3 interpreter installed on your machine —
+including `/usr/bin/python3`, the 3.9 shipped with the Xcode Command Line Tools, since that is what
+many users will actually run the skill with — then lints skill structure and shell syntax. Make it
+automatic:
+
+```bash
+ln -sf ../../tools/pre-push .git/hooks/pre-push
+```
+
+The tests are deliberately not in CI: they are fast, they need no services, and a green badge on a
+run nobody looks at is worth less than a hook that blocks the push. CI covers only skill structure
+and relative links.
 
 New validator rule → new test. Diagnostics must stay compact and actionable: the model reads them,
 so say what is wrong, where, and what to do next.

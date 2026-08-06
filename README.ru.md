@@ -177,11 +177,21 @@ python3 skills/figma-full-cycle/scripts/localization_context.py inventory --root
 
 ## Контрибьютинг
 
-Issues и PR приветствуются — см. [CONTRIBUTING.md](CONTRIBUTING.md). Тесты:
+Issues и PR приветствуются — см. [CONTRIBUTING.md](CONTRIBUTING.md). Проверки локальные, идут секунды:
 
 ```bash
-python3 skills/figma-full-cycle/scripts/tests/test_ui_plan.py
+./check.sh
 ```
+
+Гоняет 32 теста валидатора на каждом Python 3, который есть на машине — включая
+`/usr/bin/python3`, то есть 3.9 из Xcode Command Line Tools — затем линтует структуру скиллов и
+синтаксис shell-скриптов. Чтобы это происходило само перед каждым push:
+
+```bash
+ln -sf ../../tools/pre-push .git/hooks/pre-push
+```
+
+CI проверяет только структуру скиллов и относительные ссылки — то, что глазами в diff не поймать.
 
 ## Лицензия
 

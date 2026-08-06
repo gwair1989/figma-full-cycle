@@ -6,6 +6,19 @@ versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- `check.sh` — local check runner: validator tests on every installed Python 3 (including
+  `/usr/bin/python3` 3.9 from the Xcode Command Line Tools), skill lint, shell syntax.
+- `tools/pre-push` — optional git hook that runs `check.sh` before a push.
+
+### Changed
+
+- CI no longer runs the validator tests; they run locally. The workflow keeps only the skill
+  structure and relative-link checks.
+- `install.sh --force` moves the replaced skill to `.skill-backups` beside the target directory
+  instead of leaving it inside, where an agent would load the backup as a duplicate skill.
+
 ## [1.0.0] — 2026-08-06
 
 First public release.

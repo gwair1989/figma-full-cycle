@@ -180,11 +180,21 @@ names, keep the capability rows intact, and reference it from the skill's adapte
 
 ## Contributing
 
-Issues and PRs welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Run the tests with:
+Issues and PRs welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Checks run locally, in seconds:
 
 ```bash
-python3 skills/figma-full-cycle/scripts/tests/test_ui_plan.py
+./check.sh
 ```
+
+It runs the 32 validator tests on every Python 3 the machine has — including
+`/usr/bin/python3`, the 3.9 that ships with the Xcode Command Line Tools — then lints skill
+structure and shell syntax. To make that automatic before every push:
+
+```bash
+ln -sf ../../tools/pre-push .git/hooks/pre-push
+```
+
+CI only checks skill structure and relative links: things a reviewer cannot eyeball in a diff.
 
 ## License
 

@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Git pre-push hook: run the local checks before anything leaves the machine.
+#
+# Install once:
+#   ln -sf ../../tools/pre-push .git/hooks/pre-push
+#
+# Skip a single push (rebases, docs-only emergencies):
+#   git push --no-verify
+
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+exec "$REPO_ROOT/check.sh"
