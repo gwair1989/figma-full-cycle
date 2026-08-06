@@ -5,7 +5,8 @@
 #   ./install.sh --target ~/.codex/skills install for Codex
 #   ./install.sh --target .claude/skills  install for the current project only
 #   ./install.sh --copy                   copy instead of symlinking
-#   ./install.sh --force                  replace an existing entry (backed up first)
+#   ./install.sh --force                  replace an existing entry; the old one is moved
+#                                         to ../.skill-backups next to the target directory
 #   ./install.sh --uninstall              remove entries this script installed
 #
 # Symlinks are the default: `git pull` then updates the installed skills in place.
@@ -42,6 +43,8 @@ TARGET="${TARGET/#\~/$HOME}"
 if [ -L "$TARGET" ]; then
   TARGET="$(cd "$(dirname "$TARGET")" && cd "$(readlink "$TARGET")" 2>/dev/null && pwd || echo "$TARGET")"
 fi
+
+BACKUP_DIR="$(dirname "$TARGET")/.skill-backups"
 
 SKILLS=()
 for path in "$SRC_DIR"/*/; do
@@ -81,7 +84,10 @@ for name in "${SKILLS[@]}"; do
       warn "$dest already exists — skipped (re-run with --force to replace it)"
       continue
     fi
-    backup="$dest.bak-$(date +%Y%m%d%H%M%S)"
+    # Back up outside the skills directory: an agent scanning it would otherwise
+    # register the backup as a second, duplicate skill.
+    mkdir -p "$BACKUP_DIR"
+    backup="$BACKUP_DIR/$name.bak-$(date +%Y%m%d%H%M%S)"
     mv "$dest" "$backup"
     log "backed up        $backup"
   fi

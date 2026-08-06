@@ -83,8 +83,13 @@ cd figma-full-cycle
 ./install.sh --target ~/.codex/skills   # Codex
 ./install.sh --target .claude/skills    # this project only
 ./install.sh --copy                     # copy instead of symlink
+./install.sh --force                    # replace an existing skill of the same name
 ./install.sh --uninstall                # remove what it installed
 ```
+
+Already keeping these skills in your skills directory? `--force` replaces them and moves the old
+copies to `.skill-backups` **next to** the skills directory — never inside it, where an agent would
+pick the backup up as a second, duplicate skill.
 
 Verify: start a new agent session and check that `figma-full-cycle` appears in the skill list.
 
