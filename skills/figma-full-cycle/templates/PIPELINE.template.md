@@ -1,7 +1,7 @@
 # <FEATURE> — Pipeline manifest
 
 > The full cycle's source of truth. Only the main thread of the `figma-full-cycle` skill writes here.
-> pipeline_schema_version: 9
+> pipeline_schema_version: 10
 > run_id: <RUN_ID> <!-- date+slug; new on a fresh start, preserved across resume -->
 > Figma: <FIGMA_URL>
 > Figma pin: fileKey=<KEY> node=<NODE> version=<VERSION_OR_HASH> checked_at=<TS>
@@ -61,11 +61,11 @@ Statuses: `ready / degraded / fallback / blocked / stale`. A stage does not star
 | Layout | | | `references/layout-adaptivity-contract.md` (LAY-01…LAY-11) | `<reference canvas; scaling API; smallest/largest device; orientations; patterns the project forbids>` | `todo` |
 | Strings | | | `references/project-ui-conventions.md#strings-baseline` | | `todo` |
 | Typography | | | `references/project-ui-conventions.md#typography-baseline` | | `todo` |
-| Colors | | | `references/project-ui-conventions.md#colors-baseline` | | `todo` |
+| Colors | | | `references/colors-contract.md` (COL-01…COL-10) | `<palette mechanism + naming scheme; semantic layer location; system slots; appearance variants; project guard invocation; literal allowlist>` | `todo` |
 | Images | | | `import-figma-assets` + `references/project-ui-conventions.md#images-baseline` | | `todo` |
 | Accessibility | | | `references/project-ui-conventions.md#accessibility-baseline` | `no-add` unless documentation or the user explicitly requires otherwise | `todo` |
 
-Statuses: `matched / project-specific / skill-fallback / inferred-from-code / conflict / not-applicable`. Stages 1–8 do not start while a row is `todo` or while an open `conflict` affects the stage. For Layout, documentation outranks precedent in existing screens: a pattern documentation marks legacy is not repeatable, and `inferred-from-code` applies only when there is no layout documentation at all. For Accessibility, no explicit requirement → `skill-fallback` with the decision `no-add`; `inferred-from-code` never activates scope.
+Statuses: `matched / project-specific / skill-fallback / inferred-from-code / conflict / not-applicable`. Stages 1–8 do not start while a row is `todo` or while an open `conflict` affects the stage. For Layout, documentation outranks precedent in existing screens: a pattern documentation marks legacy is not repeatable, and `inferred-from-code` applies only when there is no layout documentation at all. For Accessibility, no explicit requirement → `skill-fallback` with the decision `no-add`; `inferred-from-code` never activates scope. Two project documents stating different rules for the same area is a `conflict` to ask about, never a preference to exercise.
 
 ## Figma MCP acquisition (preflight + stage 1)
 
@@ -179,9 +179,9 @@ The commit subject in the table is the **actual** one from git; one stage = one 
 |--------|------|--------------------|----------------|-----------------------------|
 | | | `todo` | `todo` | |
 
-## Layout policy checks (stages 3 and 8)
+## UI policy checks (stages 3 and 8)
 
-> One row per detection from `references/layout-adaptivity-contract.md`, run over the feature's changed files. A hit is a stage 3 blocker, not a stage 5 remark. `waived` requires a reason and the user's decision.
+> One row per detection from `references/layout-adaptivity-contract.md` and `references/colors-contract.md`, run over the feature's changed files. A hit is a stage 3 blocker, not a stage 5 remark. `waived` requires a reason and the user's decision. Where the project ships its own guard, record its exact invocation in the detection column and run that instead of the grep.
 
 | Rule | Detection | Result (hits / clean) | Status |
 |------|-----------|-----------------------|--------|
@@ -193,8 +193,13 @@ The commit subject in the table is the **actual** one from git; one stage = one 
 | LAY-08 container modifier order | `.background(` before `.frame(maxWidth: .infinity`; `.ignoresSafeArea()` on a content container | | `todo` |
 | LAY-09 `scaleEffect` over text | `.scaleEffect(` on a container carrying text | | `todo` |
 | LAY-10 undocumented geometry arithmetic | `safeAreaInsets`/`geo.` in the view layer without a derivation comment | | `todo` |
+| COL-01 palette referenced from a view | a palette symbol used outside the files that own the semantic layer | | `todo` |
+| COL-02 duplicate palette entry | two palette entries with equal components | | `todo` |
+| COL-03 mixed naming schemes | palette entry names that do not follow the one resolved scheme | | `todo` |
+| COL-04 alpha in a palette entry | opacity-suffixed names; entries differing only in alpha | | `todo` |
+| COL-05 inline colour literal | every forbidden form enumerated: `Color(red:`, `Color(white:`, `Color(hue:`, `Color(hex:`, `UIColor(`/`NSColor(`, `#colorLiteral` | | `todo` |
 
-Statuses: `todo / clean / hits / fixed / waived`.
+Statuses: `todo / clean / hits / fixed / waived`. A clean run of a project guard counts only when its pattern demonstrably covers every form listed for COL-05; an uncovered form is recorded here as a known gap, not as `clean`.
 
 ## Adaptivity matrix (stage 6)
 

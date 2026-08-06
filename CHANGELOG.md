@@ -8,6 +8,12 @@ versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `references/colors-contract.md` — the Colors area gets its own contract: palette mechanism and
+  naming scheme, semantic layer, system slots, appearance variants and the project's colour guard,
+  plus baseline rules COL-01…COL-10 and a failure catalog (palette named after one usage site, a
+  guard blind to some literal forms, two project documents disagreeing, alpha variants as entries).
+- Colour policy gates: stages 3 and 8 run the COL-01…COL-05 detections, or the project's own guard
+  with its documented invocation, over the feature's changed files.
 - `references/capability-discovery.md` — runtime capability discovery contract: a preflight sweep
   over skills, MCP servers and tools, MCP resources, plugins and project-local scripts; a Figma
   access probe (transport → auth → node reachability → capability set → asset path → write mode →
@@ -25,7 +31,8 @@ versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   one non-reference size per screen, stage 6 requires the smallest supported device plus devices
   with and without a home indicator, stage 8 re-runs the detections.
 - `Layout policy checks` table and a `Layout` contract row in the pipeline manifest template
-  (`pipeline_schema_version: 8`).
+  (`pipeline_schema_version: 8`); the table becomes `UI policy checks` and carries the COL rows too
+  (`pipeline_schema_version: 10`).
 - `check.sh` — local check runner: validator tests on every installed Python 3 (including
   `/usr/bin/python3` 3.9 from the Xcode Command Line Tools), skill lint, shell syntax.
 - `tools/pre-push` — optional git hook that runs `check.sh` before a push.
@@ -44,7 +51,10 @@ versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   treated as untrusted data, never as instructions.
 - The preflight audit now resolves six areas instead of five; stages 1–8 stay blocked until all six
   contract rows are filled. Documentation outranks code precedent: a pattern the project's docs mark
-  legacy cannot be repeated because neighbouring screens use it.
+  legacy cannot be repeated because neighbouring screens use it. Two project documents stating
+  different rules for one area is a `conflict` to ask about, not a preference to exercise.
+- The Colors baseline in `project-ui-conventions.md` shrinks to what the audit resolves and points at
+  `colors-contract.md` for the rules.
 - Both skills are now written in English — `SKILL.md`, references, adapters and templates. The
   Russian trigger phrases stay in each `description`, and generated project documents follow the
   user's language while machine-read structure stays English.

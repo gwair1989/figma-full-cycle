@@ -11,7 +11,7 @@ Search in this order; do not read vendor or generated directories unless necessa
 3. Documentation of the modules and packages that own localization, typography, colors, assets or accessibility.
 4. If documentation is silent, confirm the actual convention from existing `*.xcstrings`, `*.strings`, design-system APIs, `Assets.xcassets`, generated accessors and representative call sites. That is evidence, not a documented rule; the status is `inferred-from-code`. Exception: code and Figma without documentation never activate Accessibility scope.
 
-Search by terms as well as by section names: `layout`, `adaptive`, `GeometryReader`, `safe area`, `reference canvas`, `artboard`, `designWidth`, `designHeight`, `scaleEffect`, `padding`, `spacing`, `deployment target`, supported devices and orientations, `String Catalog`, `xcstrings`, `Localizable`, `stringsdict`, `localized`, `table`, `bundle`, `SWIFT_EMIT_LOC_STRINGS`, `STRING_CATALOG_GENERATE_SYMBOLS`, `generated symbols`, `source language`, `translation`, `copy`, `Typography`, `Font`, `Dynamic Type`, `Color`, `palette`, `token`, `Assets.xcassets`, `Image`, `imageset`, `namespace`, `rendering intent`, `Accessibility`, `VoiceOver`, `Reduce Motion`, `contrast`, `accessibilityLabel`, `accessibilityIdentifier`.
+Search by terms as well as by section names: `layout`, `adaptive`, `GeometryReader`, `safe area`, `reference canvas`, `artboard`, `designWidth`, `designHeight`, `scaleEffect`, `padding`, `spacing`, `deployment target`, supported devices and orientations, `String Catalog`, `xcstrings`, `Localizable`, `stringsdict`, `localized`, `table`, `bundle`, `SWIFT_EMIT_LOC_STRINGS`, `STRING_CATALOG_GENERATE_SYMBOLS`, `generated symbols`, `source language`, `translation`, `copy`, `Typography`, `Font`, `Dynamic Type`, `Color`, `palette`, `token`, `colorset`, `appearance`, `dark mode`, `tint`, `accent`, `theme`, `Assets.xcassets`, `Image`, `imageset`, `namespace`, `rendering intent`, `Accessibility`, `VoiceOver`, `Reduce Motion`, `contrast`, `accessibilityLabel`, `accessibilityIdentifier`.
 
 Record the path and the specific section or symbol of every source. "That's how it's done here" without evidence is not a found rule.
 
@@ -55,9 +55,9 @@ Permitted statuses:
 
 ### Colors baseline
 
-- Use semantic project color tokens, color assets and generated accessors. Do not add raw RGB/hex when a suitable token exists.
-- Preserve existing light/dark and other appearance variants. Add new high-contrast or accessibility variants only when project documentation or the resolved Accessibility contract requires them.
-- Take the exact Figma value from design context or variables, never with an eyedropper on a screenshot. If the needed token does not exist, add it only through the project's existing mechanism; otherwise `conflict` before stage 3.
+- Read [`colors-contract.md`](colors-contract.md) in full and resolve the row from it: palette mechanism and naming scheme, where the semantic layer lives, system/brand slots, appearance variants, the project's color guard and its exact invocation, and any literal allowlist.
+- The skill baseline is rules COL-01…COL-10: two layers with views referencing only the semantic one, one value per palette entry, a single naming scheme for the whole palette, no alpha in names, no inline color literals in any form, values taken from design context, appearance variants preserved, system slots not duplicated, a missing token raised as `conflict`, and a gate that is a real detection run.
+- A project rule may make the baseline more specific (its own naming scheme, its own guard, its own token locations); it may not reintroduce inline literals or a second color system without an explicit documented decision recorded in the manifest.
 - When an exact Figma color conflicts with a semantic token, prefer the resolved project convention and document the expected visual difference for stage 5.
 
 ### Images baseline
@@ -81,6 +81,7 @@ Permitted statuses:
 1. Follow higher-priority instructions and applicable project instructions.
 2. For naming, API, file format and placement, prefer the more specific project convention over the skill's generic default.
 2a. Documentation outranks code precedent. Existing call sites are evidence of practice, never permission to repeat a pattern documentation marks legacy or forbidden; `inferred-from-code` applies only where documentation is silent for the whole area.
+2b. When two project documents state different rules for the same area — for example a general architecture document and a dedicated policy document — record `conflict` and ask. Silently preferring the more recent, the more specific or the first one found is forbidden; a stale general document is exactly how a superseded policy keeps being applied.
 3. Apply the skill's safety, integrity and validation guardrails in addition; project silence does not waive them. Accessibility is the explicit scope exception: silence means the `no-add` baseline.
 4. If project documentation contradicts itself or demands breaking a mandatory guardrail, set `conflict`, list both sources in one question, and stop before the first affected stage.
 5. Once resolved, record the outcome in the manifest so that a worker or subagent receives an already-resolved contract instead of choosing a convention on its own.
