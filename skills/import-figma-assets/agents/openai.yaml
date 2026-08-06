@@ -1,0 +1,4 @@
+interface:
+  display_name: "Figma → Xcode Assets"
+  short_description: "Import Figma assets into Xcode catalogs"
+  default_prompt: "Use $import-figma-assets to import selected Figma assets into this Xcode project."
