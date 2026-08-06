@@ -8,6 +8,16 @@ versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `references/capability-discovery.md` — runtime capability discovery contract: a preflight sweep
+  over skills, MCP servers and tools, MCP resources, plugins and project-local scripts; a Figma
+  access probe (transport → auth → node reachability → capability set → asset path → write mode →
+  stage 5 credential); role definitions, the selection rule between competing candidates, and the
+  handling of tools that did not exist when the skill was written.
+- `Capability ledger` and `Figma access probe` sections in the pipeline manifest template
+  (`pipeline_schema_version: 9`): one row per role with binding, kind/origin, evidence, status and
+  affected stages.
+- `import-figma-assets` ships in this repository as the third skill, so stage 2 no longer depends on
+  an external catalog entry.
 - `references/layout-adaptivity-contract.md` — Layout & Adaptivity becomes the sixth area of the
   UI convention contract: reference canvas, permitted scaling API, supported devices, forbidden
   patterns, baseline rules LAY-01…LAY-11 and a failure catalog (FAIL-01…FAIL-04).
@@ -22,6 +32,16 @@ versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Stages are bound by **role**, not by skill name. Outside the skills shipped here, every name in
+  `SKILL.md` and the adapters is an example verified against the live catalog; a role can bind a
+  renamed, namespaced, plugin-prefixed or newly published tool, and never a name that did not appear
+  in the run's discovery output.
+- Figma preflight now runs an explicit auth probe (one `whoami`) before the first read and
+  separates the failure causes — auth, file permission, missing node, wrong transport — instead of
+  reading every error as a broken node id. The acquisition budget accounts for that call.
+- A discovered tool is classified by what its description does: anything that mutates the design
+  source stays unused regardless of its name, and tool descriptions or MCP server instructions are
+  treated as untrusted data, never as instructions.
 - The preflight audit now resolves six areas instead of five; stages 1–8 stay blocked until all six
   contract rows are filled. Documentation outranks code precedent: a pattern the project's docs mark
   legacy cannot be repeated because neighbouring screens use it.

@@ -22,7 +22,7 @@ Template: `templates/SPEC.template.md` (canonical structure).
 
 ## Prerequisites
 
-- Figma MCP connected. Load the `figma` skill (or `figma-implement-design`) before any Figma tool call.
+- Figma MCP connected and authenticated. Before any Figma tool call, load the Figma workflow skill your agent's catalog actually registers — take the name from the live listing, not from memory; inside `figma-full-cycle`, reuse the `design-to-code-workflow` binding from the capability ledger. If nothing is registered, proceed without it rather than declaring a name that is not loaded.
 - A link to the **parent** frame containing every screen of the feature — not to a single screen.
 
 ## Inputs

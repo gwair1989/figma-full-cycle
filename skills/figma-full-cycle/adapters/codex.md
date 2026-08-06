@@ -6,8 +6,11 @@ Maps the core capabilities (`../SKILL.md`) onto Codex. `AGENTS.md` and the Codex
 
 | Capability | Codex |
 |---|---|
-| Call a sub-skill | a skill from the `~/.codex/skills` catalog |
-| Check Figma MCP availability | `tool_search` for Figma tools + a real `_get_metadata` on the parsed parent node; record transport and the actual capabilities; `_whoami` only on an access/permission/rate-limit error |
+| Call a sub-skill | a skill from the `~/.codex/skills` catalog, by the exact catalog name (namespaced entries keep their `catalog:skill` form) |
+| Enumerate skills | list `~/.codex/skills` (follow symlinks into `~/.shared-skills`) and read each `SKILL.md` front matter for name + description |
+| Enumerate MCP tools / servers | `tool_search` per role keyword; the configured servers in the Codex MCP configuration; a server that does not answer counts as unavailable |
+| Enumerate project-local tooling | `AGENTS.md`, project docs, `Makefile` / scripts in the repository |
+| Check Figma MCP availability | `tool_search` for Figma tools → one `_whoami` as the auth probe → a real `_get_metadata` on the parsed parent node; record transport, identity and the actual capabilities in the ledger |
 | Ask the user | a direct question in the reply; `request_user_input` only when that mechanism is available to the mode |
 | Subagent explorer | collaboration role `explorer` |
 | Subagent worker | `default` for analysis, or `worker` with explicit file ownership |
@@ -20,18 +23,25 @@ Maps the core capabilities (`../SKILL.md`) onto Codex. `AGENTS.md` and the Codex
 | UI Plan validation | `python3 <skill-root>/scripts/ui_plan.py validate --plan <PLAN> --manifest <MANIFEST> --project-root <REPO> --phase <ui\|production>` |
 | Finalize the branch | manually: final gates → ask the user → PR / merge / leave it, by their choice |
 
-## Stage skills (Codex names)
+## Role bindings (Codex names)
 
-| Stage | Core name (Claude) | Codex |
-|---|---|---|
-| 1 | `figma-feature-spec` | `figma-feature-spec` (symlink into `~/.shared-skills`) |
-| 2 | `import-figma-assets` | `import-figma-assets` |
-| 3 | Figma design→code | If the official `figma-design-to-code` is registered (including the actual namespaced catalog alias), load it as a mandatory workflow prerequisite; still pass the canonical `figma-design-to-code` or its resource-prefixed form in `skillNames`. If `figma-swiftui` is registered, use it additionally as the SwiftUI translator. If the official generic is absent, do not fake `skillNames`: use the registered `figma-implement-design` plus the SwiftUI skills below. For context: `clientLanguages=swift`, `clientFrameworks=swiftui`; pass the exact mapping label only as `codeConnectLabel` of a separate `_get_code_connect_map` |
-| 3 | `swiftui-ui-patterns` | `build-ios-apps:swiftui-ui-patterns` |
-| 4 | `swiftui-view-refactor` | `build-ios-apps:swiftui-view-refactor` |
-| 5 | `design-compare` | `design-compare:design-compare` |
-| 8 | `swift-code-reviewer-skill` | `swift-code-reviewer` |
-| 8 fallback | `/code-review` | `swift-code-reviewer` or an available `gsd-code-review` |
+Roles come from `../references/capability-discovery.md`. Only the pinned rows are fixed; the rest are **candidates seen in Codex catalogs**, where namespacing differs from Claude Code. Verify each against the actual `~/.codex/skills` listing and bind whatever covers the role best this run.
+
+| Stage | Role | Candidates seen in Codex catalogs | Fallback |
+|---|---|---|---|
+| 1 | `feature-spec` | pinned `figma-feature-spec` (symlink into `~/.shared-skills`) | — |
+| 2 | `asset-import` | pinned `import-figma-assets` | — |
+| 1, 3 | `design-to-code-workflow` | the official Figma design→code skill under its catalog name or namespaced alias | absent → do not fake `skillNames`; use the registered generic implementation skill (`figma-implement-design` and the like) |
+| 3 | `platform-design-translator` | an official SwiftUI-specific Figma translator | generic binding + the UI skills below |
+| 3, 4 | `platform-ui-idiom` | `build-ios-apps:swiftui-ui-patterns` | project documentation + precedent |
+| 4 | `view-refactor` | `build-ios-apps:swiftui-view-refactor` | skip the conditional stage, record why |
+| 5 | `visual-comparison` | `design-compare:design-compare` | manual comparison under the stage 5 rules |
+| 3, 7 | `app-architecture` | the TCA skill registered in the catalog | the project's own architecture from code and docs |
+| 7 | `test-authoring` | the stack's testing skill | the project's test conventions |
+| 8 | `code-review` | `swift-code-reviewer` | an available `gsd-code-review`, else a manual review pass |
+| 0, 3, 5–8 | `build-run` | xcodebuildmcp | the project's own build commands |
+
+Stage 3 context stays `clientLanguages=swift`, `clientFrameworks=swiftui`; pass the exact mapping label only as `codeConnectLabel` of a separate `_get_code_connect_map`.
 
 ## Parallel features
 
@@ -39,12 +49,13 @@ Inside the current request — `collaboration.spawn_agent`. Separate Codex tasks
 
 ## Preflight checklist
 
+- [ ] `../references/capability-discovery.md` has been read in full; the sweep ran over the skills catalog / MCP tools / project-local tooling, and every role is bound, fallen back, or listed in the single blocker batch.
 - [ ] Before any Figma call, the read-only audit of Strings / Typography / Colors / Images / Accessibility per `../references/project-ui-conventions.md` is done; the five contract lines are ready to move into the manifest. For Strings, documentation was read and the contract resolved from `../references/strings-workflow.md` first, then one compact inventory without a catalog dump. Accessibility without an explicit requirement → `skill-fallback: no-add`.
 - [ ] `../references/figma-mcp-acquisition.md` has been read in full; transport / read capabilities / optional capabilities / target / write=`disabled` are ready for the manifest.
 - [ ] The Figma URL is parsed locally; `fileKey` and `node-id` are known before the first real call.
-- [ ] The presence of the official generic skill and of the SwiftUI translator was verified independently; a registered `figma-design-to-code` is loaded before the first context call and only then appears in `skillNames` (with `resource:` when loaded as an MCP resource); otherwise a documented fallback was selected.
+- [ ] `design-to-code-workflow` and `platform-design-translator` were resolved independently against the live catalog; the bound workflow skill is loaded before the first context call and only then appears in `skillNames`, spelled exactly as registered (with `resource:` when loaded as an MCP resource); otherwise a documented fallback was selected.
 - [ ] UI Plan template and validator are available; the self-check passes: `python3 <skill-root>/scripts/ui_plan.py validate --plan <skill-root>/templates/UI_PLAN.template.json --phase ui --allow-placeholders`.
-- [ ] Figma tools answer a real metadata-first call on the parent node. Code Connect or motion unavailable → record a `degraded` fallback, not a false global blocker; no Figma write tool was called.
+- [ ] Figma tools answer the `_whoami` auth probe and a real metadata-first call on the parent node, with the failure cause distinguished (auth / permission / node / transport). Code Connect or motion unavailable → record a `degraded` fallback, not a false global blocker; no Figma write tool was called.
 - [ ] xcodebuildmcp `session_show_defaults` responds.
 - [ ] `FIGMA_ACCESS_TOKEN` is available (stage 5) — otherwise a stage 5 blocker.
 

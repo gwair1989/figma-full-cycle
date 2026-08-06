@@ -1,7 +1,7 @@
 # <FEATURE> — Pipeline manifest
 
 > The full cycle's source of truth. Only the main thread of the `figma-full-cycle` skill writes here.
-> pipeline_schema_version: 8
+> pipeline_schema_version: 9
 > run_id: <RUN_ID> <!-- date+slug; new on a fresh start, preserved across resume -->
 > Figma: <FIGMA_URL>
 > Figma pin: fileKey=<KEY> node=<NODE> version=<VERSION_OR_HASH> checked_at=<TS>
@@ -12,6 +12,44 @@
 > Mode: <full | ui-first (stop before logic, waiting for requirements)>
 > Readiness: <production-ready | prototype/UI-only (user's choice) | TBD>
 > Runtime (gitignored, never in a PR): docs/<FEATURE>_PIPELINE.local.md
+
+## Capability ledger (preflight)
+
+> Fill per `references/capability-discovery.md` before the project audit. Names go in **exactly as registered** (keep plugin/namespace/resource prefixes). Roles, not names, are what the stages depend on.
+> Swept: at=<TS> agent=<AGENT>
+
+| Role | Binding (exact registered name / path) | Kind / origin | Capability evidence | Status | Stages |
+|------|----------------------------------------|---------------|---------------------|--------|--------|
+| `feature-spec` | `figma-feature-spec` | `skill / repo-internal` | pinned | `ready` | 1 |
+| `asset-import` | `import-figma-assets` | `skill / repo-internal` | pinned | `ready` | 2 |
+| `strings-inspection` | `scripts/localization_context.py` | `script / repo-internal` | pinned | `ready` | preflight, 3, 8 |
+| `ui-plan-validation` | `scripts/ui_plan.py` | `script / repo-internal` | pinned | `ready` | 1, 3, 7 |
+| `design-source-read` | | `mcp-tool / vendor-official` | | `todo` | 1, 2, 3, 5 |
+| `design-to-code-workflow` | | `<skill / mcp-resource> / <vendor-official / third-party>` | | `todo` | 1, 3 |
+| `platform-design-translator` | | | | `todo` | 3 |
+| `platform-ui-idiom` | | | | `todo` | 3, 4 |
+| `app-architecture` | | | | `todo` | 3, 7 |
+| `test-authoring` | | | | `todo` | 7 |
+| `view-refactor` | | | | `todo` | 4 |
+| `visual-comparison` | | | | `todo` | 5 |
+| `code-review` | | | | `todo` | 8 |
+| `build-run` | | | | `todo` | 0, 3, 5–8 |
+
+Statuses: `ready / degraded / fallback / blocked / stale`. A stage does not start while one of its roles is `blocked` or `stale`. `degraded` and `fallback` do not block, but the affected gate evidence says so. Alternates that lost the selection go in the evidence cell, never as a second binding.
+
+### Figma access probe
+
+| Probe | Result | Evidence | Status |
+|-------|--------|----------|--------|
+| Transport | `<remote / desktop>` | | `<ready / blocked>` |
+| Identity / auth | `<account or scope, never a token value>` | `whoami at <TS>` | `<ready / blocked>` |
+| Node reachability | `<fileKey/node reads / permission / not-found / wrong-transport>` | `get_metadata(parent) at <TS>` | `<ready / blocked>` |
+| Read capability set | `<container map, design context, screenshot, variable defs>` | | `<ready / degraded>` |
+| Optional capabilities | `<code-connect / motion / absent>` | | `<ready / degraded>` |
+| Asset path | `<exact-bytes download / temporary URL + HTTP client>` | | `<ready / degraded / blocked>` |
+| Write mode | `disabled` | | `ready` |
+| Stage 5 credential | `<FIGMA_ACCESS_TOKEN present / absent>` | presence only | `<ready / stage-5 blocker>` |
+| Call budget / rate limit | | | `<ready / degraded>` |
 
 ## Project UI convention contract (preflight)
 
@@ -182,7 +220,7 @@ Statuses: `open` / `answered` / `resolved-from-docs` (name where it was found: s
 
 | Screen | Report | Sizes compared (reference + non-reference) | ❌ → fix | Status |
 |--------|--------|--------------------------------------------|----------|--------|
-| | design-compare-reports/<FEATURE>/... | `<393×852 + 375×667>` | | |
+| | `<report path of the bound visual-comparison tool>/<FEATURE>/...` | `<393×852 + 375×667>` | | |
 
 A screen is not comparable while only the reference size is covered. An inset divergence inside the LAY-07 snap window (−2…+4pt) is a match, not a ❌.
 

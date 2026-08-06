@@ -63,13 +63,17 @@ Two properties make this survivable in practice:
 - **Target project:** an Xcode/SwiftUI app; stage 3 and stage 7 assume
   [TCA](https://github.com/pointfreeco/swift-composable-architecture), with documented fallbacks
   to the project's own stack skills.
-- **Companion skills**, invoked per stage (each has an adapter-level fallback):
-  `figma-feature-spec` (shipped here) · `import-figma-assets` · `figma-design-to-code` /
-  `figma-swiftui` · `pfw-modern-swiftui` · `swiftui-ui-patterns` · `pfw-composable-architecture` ·
-  `swiftui-view-refactor` · `design-compare` · `pfw-testing` · `swift-code-reviewer-skill`.
+- **Companion skills** are **discovered, not required by name.** Preflight sweeps the skills,
+  MCP tools, MCP resources, plugins and project-local scripts actually installed on your machine and
+  binds one of them to each stage *role* — `design-to-code-workflow`, `platform-ui-idiom`,
+  `app-architecture`, `visual-comparison`, `code-review`, … Renamed, namespaced, plugin-prefixed or
+  brand-new vendor skills are picked up the same way; every role that finds nothing falls back to a
+  documented path. Only what ships here is pinned by name: `figma-full-cycle`, `figma-feature-spec`,
+  `import-figma-assets`.
 
 Missing capabilities are reported as a single up-front blocker list, not discovered one by one
-halfway through the build.
+halfway through the build. The resulting bindings — plus the Figma auth and node-reachability
+probe — are written into the manifest's capability ledger.
 
 ## Install
 
@@ -79,7 +83,7 @@ cd figma-full-cycle
 ./install.sh
 ```
 
-`install.sh` symlinks both skills into `~/.claude/skills` — so `git pull` updates them in place.
+`install.sh` symlinks all three skills into `~/.claude/skills` — so `git pull` updates them in place.
 
 ```bash
 ./install.sh --target ~/.codex/skills   # Codex
@@ -130,13 +134,17 @@ skills/
 ├── figma-full-cycle/
 │   ├── SKILL.md                     # the orchestrator
 │   ├── adapters/                    # claude-code.md, codex.md — capability → tool names
-│   ├── references/                  # UI plan contract, Figma acquisition, strings, conventions
+│   ├── references/                  # capability discovery, UI plan contract, Figma acquisition,
+│   │                                #   strings, layout, conventions
 │   ├── scripts/                     # ui_plan.py, localization_context.py (+ tests)
 │   ├── templates/                   # PIPELINE, PIPELINE.local, UI_PLAN
 │   └── agents/openai.yaml           # OpenAI-style agent manifest
-└── figma-feature-spec/              # stage 1 as a standalone skill
+├── figma-feature-spec/              # stage 1 as a standalone skill
+│   ├── SKILL.md
+│   └── templates/SPEC.template.md
+└── import-figma-assets/             # stage 2 as a standalone skill
     ├── SKILL.md
-    └── templates/SPEC.template.md
+    └── scripts/                     # imageset generator, PNG canvas normalizer
 ```
 
 ### The two scripts

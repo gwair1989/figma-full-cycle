@@ -66,13 +66,17 @@ Claude Code и Codex. Даёшь ссылку на родительский фр
 - **Проект:** Xcode/SwiftUI-приложение; этапы 3 и 7 рассчитаны на
   [TCA](https://github.com/pointfreeco/swift-composable-architecture), с задокументированными
   fallback'ами на скиллы стека проекта.
-- **Скиллы-спутники** по этапам (у каждого есть fallback в адаптере):
-  `figma-feature-spec` (лежит здесь же) · `import-figma-assets` · `figma-design-to-code` /
-  `figma-swiftui` · `pfw-modern-swiftui` · `swiftui-ui-patterns` · `pfw-composable-architecture` ·
-  `swiftui-view-refactor` · `design-compare` · `pfw-testing` · `swift-code-reviewer-skill`.
+- **Скиллы-спутники не зашиты по именам — они обнаруживаются.** Префлайт проходит по реально
+  установленным скиллам, MCP-инструментам, MCP-ресурсам, плагинам и скриптам проекта и привязывает
+  по одному кандидату к каждой *роли* этапа: `design-to-code-workflow`, `platform-ui-idiom`,
+  `app-architecture`, `visual-comparison`, `code-review` и так далее. Переименованные, вынесенные в
+  неймспейс, префиксованные плагином и совсем новые вендорские скиллы подхватываются так же; роль
+  без кандидата уходит в задокументированный fallback. Жёстко по именам — только то, что лежит
+  здесь: `figma-full-cycle`, `figma-feature-spec`, `import-figma-assets`.
 
 Отсутствующие возможности выдаются одним списком-блокером в начале, а не всплывают по одной на
-середине работы.
+середине работы. Итоговые привязки — вместе с пробой аутентификации Figma и доступности узла —
+пишутся в capability ledger манифеста.
 
 ## Установка
 
@@ -82,8 +86,8 @@ cd figma-full-cycle
 ./install.sh
 ```
 
-`install.sh` ставит симлинки на оба скилла в `~/.claude/skills` — после этого `git pull` обновляет
-их на месте.
+`install.sh` ставит симлинки на все три скилла в `~/.claude/skills` — после этого `git pull`
+обновляет их на месте.
 
 ```bash
 ./install.sh --target ~/.codex/skills   # Codex
@@ -130,13 +134,17 @@ skills/
 ├── figma-full-cycle/
 │   ├── SKILL.md                     # оркестратор
 │   ├── adapters/                    # claude-code.md, codex.md — capability → имена инструментов
-│   ├── references/                  # контракт UI Plan, Figma acquisition, строки, конвенции
+│   ├── references/                  # discovery инструментов, контракт UI Plan, Figma acquisition,
+│   │                                #   строки, layout, конвенции
 │   ├── scripts/                     # ui_plan.py, localization_context.py (+ тесты)
 │   ├── templates/                   # PIPELINE, PIPELINE.local, UI_PLAN
 │   └── agents/openai.yaml           # манифест агента в формате OpenAI
-└── figma-feature-spec/              # этап 1 как отдельный скилл
+├── figma-feature-spec/              # этап 1 как отдельный скилл
+│   ├── SKILL.md
+│   └── templates/SPEC.template.md
+└── import-figma-assets/             # этап 2 как отдельный скилл
     ├── SKILL.md
-    └── templates/SPEC.template.md
+    └── scripts/                     # генератор imageset, нормализация PNG-канваса
 ```
 
 ### Два скрипта
