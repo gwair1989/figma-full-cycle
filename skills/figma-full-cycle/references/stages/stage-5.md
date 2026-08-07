@@ -18,12 +18,15 @@ python3 <skill-root>/scripts/screenshot_diff.py compare \
   --out docs/.cache/<FEATURE>/reports/diff-<screen>-<device>.json
 ```
 
-It normalizes the mock to the render's size, so a non-reference device is a normal comparison rather than an error, and it answers letterbox / pillarbox / background-to-the-edges / bottom-clipping in about 0.3s per pair. No image enters context here.
+It normalizes the mock to the render's size, so a non-reference device is a normal comparison rather than an error, and it answers letterbox / pillarbox / background-to-the-edges in about 0.3s per pair. No image enters context here.
+
+On a **non-reference size the aspect usually differs from the mock**, and there the structural grid diff is reported but not gated: a correctly adapted native layout diverges from the stretched mock just as a broken one does, so the number cannot separate them. The non-reference pair is therefore still compared by eye whatever its verdict — it is the pair most likely to carry the defect.
 
 **2. `visual-comparison` over the pairs that earned it** — one explorer subagent per screen, against a `#Preview` or a simulator screenshot:
 
 - every pair the geometry pass marked `FAIL`;
-- **one `PASS` pair per screen**, chosen as the most content-dense state.
+- **one `PASS` pair per screen**, chosen as the most content-dense state;
+- the **non-reference size** for every screen, whatever its verdict, because the geometry pass does not gate the grid there.
 
 The second rule is not optional bookkeeping. The geometry pass sees geometry, not design: a wrong typeface, a mirrored icon, wrong copy, a shade under the threshold — all pass, and the script prints that list with every run. A screen whose pairs all passed mechanically has never been compared to its design.
 

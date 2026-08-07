@@ -32,7 +32,11 @@ python3 <skill-root>/scripts/screenshot_diff.py batch \
 
 `matrix.json` is a list of `{label, render, mock, ignore_top, ignore_bottom}` — one entry per matrix row, the label being the row as it appears in the manifest. A 30-row matrix runs in about ten seconds and returns one `PASS`/`FAIL` line per row.
 
-The four LAY-11 questions — layout fits, no unintended letterboxing, no clipped content, background reaching the edges — are exactly what the script answers, which is why it exists. What it cannot answer stays with the reviewer: text that is truncated rather than clipped, a locale that reflows badly, a control that moved somewhere legal but wrong. Eyes go on every `FAIL`, and on one `PASS` per screen.
+Of the four LAY-11 questions the script gates on three — unintended letterboxing, pillarboxing, background reaching the edges. Those survive a change of aspect ratio.
+
+**Clipping does not, and this matters most on the row where it matters most.** The mock is stretched to the render's size, while a native layout adapts by holding its metrics in points, so on a different device class a correctly adapted screen also differs in the bottom band. The script reports that difference and refuses to gate on it, saying so in the output (`not gated: mock 2.17 vs render 1.78 aspect`). On the smallest supported device — a different aspect from the mock nearly every time — **whether content is clipped is a reviewer question, and that row is looked at by eye regardless of its verdict.**
+
+Also reviewer work, on every row: text truncated rather than clipped, a locale that reflows badly, a control that moved somewhere legal but wrong. Eyes go on every `FAIL`, on one `PASS` per screen, and on the smallest-device row.
 
 ## Fallback
 
@@ -43,6 +47,6 @@ The four LAY-11 questions — layout fits, no unintended letterboxing, no clippe
 
 - Every row required by the resolved contract shows no clipping or overlap.
 - Per required device the screenshot evidence explicitly confirms: the layout fits the screen, no unintended letterboxing, no clipped content, background reaching the edges.
-- The batch run's marker and report path are recorded; every `FAIL` and one `PASS` per screen were reviewed by eye.
+- The batch run's marker and report path are recorded; every `FAIL`, one `PASS` per screen, and the smallest-device row for each screen were reviewed by eye.
 - Translation readiness tracked separately from the source gate.
 - Evidence stored.

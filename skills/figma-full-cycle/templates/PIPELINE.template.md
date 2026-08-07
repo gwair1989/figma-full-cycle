@@ -221,8 +221,10 @@ One row per combination. The set comes from the deployment target, the spec, and
 
 > Mechanical pass: `python3 <skill-root>/scripts/screenshot_diff.py batch --plan <matrix.json> --out <report>`
 > Result: `<SCREENSHOT_DIFF_CLEAN / SCREENSHOT_DIFF_DIRTY>` at `<TS>`, `<n>` rows, `<n>` failed, report `<path>`
-> Reviewed by eye: every failing row, plus one passing row per screen — list them below. The script is
-> blind to typeface, icon shape, copy and small colour shifts; a green batch is a filter, not a gate.
+> Reviewed by eye: every failing row, one passing row per screen, and the smallest-device row for each
+> screen — list them below. The script is blind to typeface, icon shape, copy and small colour shifts,
+> and across device classes it reports the grid without gating on it, so clipping on the smallest
+> device is confirmed by eye. A green batch is a filter, not a gate.
 
 | Screen | Device | Appearance | Content size | Locale / direction | Orientation | Geometry check | Status | Evidence |
 |--------|--------|------------|--------------|--------------------|-------------|----------------|--------|----------|

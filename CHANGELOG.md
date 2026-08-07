@@ -81,6 +81,22 @@ versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- `screenshot_diff.py` no longer gates on the grid diff across device classes. Normalizing stretches
+  the mock anisotropically while a native layout adapts by holding its metrics in points, so a
+  correctly adapted screen diverges from the stretched mock exactly as a broken one does — measured
+  at 41% on a content-dense fixture that is entirely correct, against a real screen's 44%. Beyond
+  `--aspect-tolerance` (default 2%) the grid and the bottom-band count are reported and not gated,
+  and the verdict rests on letterbox, pillarbox and background-to-the-edge. Clipping on a smaller
+  device is now explicitly a reviewer question; stages 5 and 6 require eyes on the smallest-device
+  row whatever its verdict, and the claim that the script answers all four LAY-11 questions has been
+  corrected everywhere it appeared.
+- Test fixtures for `screenshot_diff.py` were all proportional scales of the mock — that is, models
+  of the fixed-canvas defect rather than of the fix, which is why 21 green tests missed the above.
+  Added `native_rows`, which keeps insets, gaps and row heights fixed in points as the canvas
+  changes, and a same-aspect render size so the gated and ungated paths are both covered.
+- Failing pairs now name the suspect edge bands and their widths in the text output. An asymmetric
+  pillarbox (85px against 49px) is a strong signal that previously appeared only in the JSON.
+- The alpha-channel note no longer tells the author to re-export a simulator capture from Figma.
 - `ui_guard.py` resolves named constants instead of matching literals only. The first version was
   blind to `.frame(width: OnboardingLayout.width, height: OnboardingLayout.height)` — the exact
   fixed-canvas shape LAY-01 was written from — while reporting 55 lesser findings on the same file

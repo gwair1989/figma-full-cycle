@@ -19,6 +19,15 @@ meaning. A wrong typeface, a mirrored icon, a shade under the threshold or
 wrong copy all pass. The gate is this script plus eyes on what it flags — never
 this script alone.
 
+Across device classes it says less, on purpose. Normalizing stretches the mock
+anisotropically, while a native layout adapts by holding its metrics in points,
+so the structural grid diff reports a large difference for a correctly adapted
+screen and cannot tell that apart from broken scaling. Beyond `--aspect-
+tolerance` the grid and the bottom-band count are therefore reported but not
+gated, and the verdict rests on letterbox, pillarbox and background-to-the-edge
+— the checks that survive a change of aspect. Clipping on a smaller device
+stays a reviewer question, which is why stage 6 requires eyes on that row.
+
 Requires `sips` (every macOS since 10.4). The pipeline already requires macOS
 for `xcrun simctl`, so this adds no new dependency, and nothing to pip install.
 """
@@ -54,6 +63,10 @@ DEFAULT_BAD_RATIO = 0.05
 DEFAULT_GRID = (12, 24)
 DEFAULT_SAMPLE_STEP = 3
 LINE_SAMPLES = 48
+# Beyond this relative difference in aspect ratio the grid stops being able to
+# separate a correctly adapted layout from a badly scaled one. 2% keeps the
+# ordinary retina-scale mismatch comparable and drops device-class changes.
+DEFAULT_ASPECT_TOLERANCE = 0.02
 
 BLIND_TO = (
     "typeface, weight and letter spacing",
@@ -94,6 +107,7 @@ class Options:
     bad_ratio: float = DEFAULT_BAD_RATIO
     grid: Tuple[int, int] = DEFAULT_GRID
     sample_step: int = DEFAULT_SAMPLE_STEP
+    aspect_tolerance: float = DEFAULT_ASPECT_TOLERANCE
     ignore_top: str = "0"
     ignore_bottom: str = "0"
     match_profile: bool = True
@@ -262,7 +276,18 @@ def cell_means(
     return means
 
 
-def compare_images(render: Image, mock: Image, options: Options) -> Dict[str, object]:
+def aspect_of(size: Tuple[int, int]) -> float:
+    width, height = size
+    return float(height) / float(width) if width else 0.0
+
+
+def compare_images(
+    render: Image,
+    mock: Image,
+    options: Options,
+    render_size: Tuple[int, int],
+    mock_size: Tuple[int, int],
+) -> Dict[str, object]:
     if (render.width, render.height) != (mock.width, mock.height):
         raise DiffError("normalization failed: render and mock differ after resize")
 
@@ -273,9 +298,26 @@ def compare_images(render: Image, mock: Image, options: Options) -> Dict[str, ob
     if bottom - top < 8:
         raise DiffError("ignored bands leave nothing to compare")
 
+    # Normalizing the mock to the render's size stretches it anisotropically
+    # when the aspects differ. A native layout adapts by keeping its metrics in
+    # points, not by scaling, so its content lands somewhere else than the
+    # stretched mock's — and the grid then reports a large difference for a
+    # correctly adapted screen. It cannot tell that apart from broken scaling,
+    # so across aspects the grid is reported and not gated on.
+    render_aspect = aspect_of(render_size)
+    mock_aspect = aspect_of(mock_size)
+    aspect_delta = abs(render_aspect - mock_aspect) / render_aspect if render_aspect else 0.0
+    grid_comparable = aspect_delta <= options.aspect_tolerance
+
     report: Dict[str, object] = {
         "size": [render.width, render.height],
         "compared_rows": [top, bottom],
+        "aspect": {
+            "render": round(render_aspect, 3),
+            "mock": round(mock_aspect, 3),
+            "delta": round(aspect_delta, 3),
+            "grid_comparable": grid_comparable,
+        },
         "checks": {},
     }
 
@@ -331,11 +373,20 @@ def compare_images(render: Image, mock: Image, options: Options) -> Dict[str, ob
         if delta > options.cell_threshold:
             bad.append({"col": index % cols, "row": index // cols, "delta": delta})
     ratio = round(len(bad) / float(cols * rows), 3)
-    report["checks"]["grid"] = {"cols": cols, "rows": rows, "bad_cells": bad, "bad_ratio": ratio}
+    report["checks"]["grid"] = {
+        "cols": cols,
+        "rows": rows,
+        "bad_cells": bad,
+        "bad_ratio": ratio,
+        "comparable": grid_comparable,
+    }
 
     bottom_band_rows = max(1, rows // 6)
     bottom_area_bad = sum(1 for cell in bad if cell["row"] >= rows - bottom_band_rows)
     background_ok = all(corner["ok"] for corner in corners.values())
+
+    structural_ok = not letterbox and not pillarbox and background_ok
+    passes = structural_ok and (not grid_comparable or ratio < options.bad_ratio)
 
     report["verdict"] = {
         "label": options.label,
@@ -344,7 +395,8 @@ def compare_images(render: Image, mock: Image, options: Options) -> Dict[str, ob
         "bg_reaches_edges": background_ok,
         "bottom_area_diff_cells": bottom_area_bad,
         "grid_bad_ratio": ratio,
-        "pass": not letterbox and not pillarbox and background_ok and ratio < options.bad_ratio,
+        "grid_comparable": grid_comparable,
+        "pass": passes,
     }
     return report
 
@@ -358,14 +410,24 @@ def analyze(render_path: Path, mock_path: Path, options: Options) -> Dict[str, o
     started = time.time()
     notes = list(options.notes)
 
+    sizes: Dict[str, Tuple[int, int]] = {}
     for role, path in (("render", render_path), ("mock", mock_path)):
         if not path.is_file():
             raise DiffError("{} not found: {}".format(role, path))
-        _width, _height, colour_type = png_header(path)
+        width, height, colour_type = png_header(path)
+        sizes[role] = (width, height)
         if colour_type in ALPHA_COLOR_TYPES:
+            # A simulator capture routinely carries alpha and there is nothing to
+            # re-export; only the mock's transparency is the author's to fix.
+            remedy = (
+                "export the frame without transparency"
+                if role == "mock"
+                else "expected for a simulator capture; only the edges are affected"
+            )
             notes.append(
-                "{} has an alpha channel; sips flattens it and the edges may differ — "
-                "export the frame without transparency".format(role)
+                "{} has an alpha channel; sips flattens it and the edges may differ — {}".format(
+                    role, remedy
+                )
             )
 
     with tempfile.TemporaryDirectory() as raw_dir:
@@ -374,7 +436,7 @@ def analyze(render_path: Path, mock_path: Path, options: Options) -> Dict[str, o
         render = read_bmp(render_bmp)
         mock_bmp = to_bmp(mock_path, temp, (render.width, render.height), options.match_profile)
         mock = read_bmp(mock_bmp)
-        report = compare_images(render, mock, options)
+        report = compare_images(render, mock, options, sizes["render"], sizes["mock"])
 
     report["render"] = str(render_path)
     report["mock"] = str(mock_path)
@@ -394,6 +456,7 @@ def options_from_args(args: argparse.Namespace) -> Options:
         bad_ratio=args.bad_ratio,
         grid=parse_grid(args.grid),
         sample_step=args.sample_step,
+        aspect_tolerance=args.aspect_tolerance,
         ignore_top=args.ignore_top,
         ignore_bottom=args.ignore_bottom,
         match_profile=not args.no_color_match,
@@ -413,22 +476,39 @@ def emit(reports: Sequence[Dict[str, object]], args: argparse.Namespace) -> int:
     else:
         for report in reports:
             verdict = report["verdict"]
+            aspect = report.get("aspect", {})
             label = verdict["label"] or Path(str(report["render"])).name
+            grid_note = "grid {:.1%}".format(verdict["grid_bad_ratio"])
+            if not verdict.get("grid_comparable", True):
+                grid_note += " (not gated: mock {} vs render {} aspect)".format(
+                    aspect.get("mock"), aspect.get("render")
+                )
+
             if verdict["pass"]:
-                print("PASS  {}  grid {:.1%}".format(label, verdict["grid_bad_ratio"]))
+                print("PASS  {}  {}".format(label, grid_note))
                 continue
+
             reasons = []
+            for side in ("left", "right", "top", "bottom"):
+                band = report["checks"]["edge_bands"][side]
+                if band["suspect"]:
+                    reasons.append("{} band {}px".format(side, band["render_band_px"]))
             if verdict["letterbox"]:
                 reasons.append("letterbox")
             if verdict["pillarbox"]:
                 reasons.append("pillarbox")
             if not verdict["bg_reaches_edges"]:
                 reasons.append("background stops before the edge")
-            if verdict["bottom_area_diff_cells"]:
-                reasons.append("{} cells differ in the bottom band".format(verdict["bottom_area_diff_cells"]))
-            if verdict["grid_bad_ratio"] >= args.bad_ratio:
-                reasons.append("grid {:.1%} over threshold".format(verdict["grid_bad_ratio"]))
+            if verdict.get("grid_comparable", True):
+                if verdict["bottom_area_diff_cells"]:
+                    reasons.append(
+                        "{} cells differ in the bottom band".format(verdict["bottom_area_diff_cells"])
+                    )
+                if verdict["grid_bad_ratio"] >= args.bad_ratio:
+                    reasons.append("grid {:.1%} over threshold".format(verdict["grid_bad_ratio"]))
             print("FAIL  {}  {}".format(label, "; ".join(reasons) or "verdict false"))
+            if not verdict.get("grid_comparable", True):
+                print("      {}".format(grid_note))
 
         for report in reports:
             for note in report.get("notes", []):
@@ -503,6 +583,16 @@ def add_common(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--band-mismatch", type=int, default=DEFAULT_BAND_MISMATCH)
     parser.add_argument("--min-band-px", type=int, default=DEFAULT_MIN_BAND_PX)
     parser.add_argument("--sample-step", type=int, default=DEFAULT_SAMPLE_STEP)
+    parser.add_argument(
+        "--aspect-tolerance",
+        type=float,
+        default=DEFAULT_ASPECT_TOLERANCE,
+        help=(
+            "Relative aspect-ratio difference above which the grid diff is reported but not "
+            "gated on, because it cannot tell a correctly adapted layout from a badly scaled "
+            "one (default %(default)s)"
+        ),
+    )
     parser.add_argument(
         "--no-color-match",
         action="store_true",

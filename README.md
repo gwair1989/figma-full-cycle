@@ -203,10 +203,15 @@ python3 skills/figma-full-cycle/scripts/screenshot_diff.py compare \
 
 `screenshot_diff.py` compares an implementation screenshot against a design mock **of a different
 size** — it normalizes the mock to the render first, because at the reference size a fixed-canvas
-layout matches pixel-for-pixel and hides the breakage. It answers the four LAY-11 questions
-(letterbox, pillarbox, clipped content, background reaching the edges) in about 0.3s per pair, with a
-`batch` mode for the stage 6 matrix. It needs `sips`, which ships with macOS — the pipeline already
-requires macOS for `xcrun simctl`, so nothing new gets installed.
+layout matches pixel-for-pixel and hides the breakage. It answers letterbox, pillarbox and
+background-reaching-the-edges in about 0.3s per pair, with a `batch` mode for the stage 6 matrix. It
+needs `sips`, which ships with macOS — the pipeline already requires macOS for `xcrun simctl`, so
+nothing new gets installed.
+
+Across device classes it deliberately says less: normalizing stretches the mock, while a native
+layout adapts by holding its metrics in points, so the structural grid diff flags a correctly adapted
+screen as loudly as a broken one. Beyond `--aspect-tolerance` the grid is reported and not gated, and
+clipping on a smaller device stays a reviewer question.
 
 It is a filter, not the gate: it sees geometry, not design, and prints with every run what it is
 blind to — typeface, icon shape, copy, small colour shifts. Eyes go on every failure and on one
