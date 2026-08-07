@@ -96,6 +96,18 @@ versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- A `.frame(...)` written across several lines was not read at all. The chain broke at the opening
+  paren, so nothing inside the call was ever seen: identical code produced four findings on one line
+  and none across four. A miss for LAY-02 and LAY-03 everywhere, not just inside a composition that
+  then could not suppress what was never found.
+- `.frame(width: proxy.size.width, height: proxy.size.height)` inside a `GeometryReader` no longer
+  reads as a canvas. It means "fill whatever the parent offers" — the opposite of a fixed artboard —
+  and the idiom was flagged everywhere it appeared.
+- LAY-01 reports the frame directly above the `scaleEffect` rather than the first one in the type.
+  A correct alarm pointing at the wrong frame sends the fix to the wrong place.
+- `ui_guard.py constants` prints a `CGSize` as `381×373.85` instead of `—`. It resolves fine through
+  its members; the legend beside `—` says the resolver could not read it, which was untrue for every
+  size constant in a project.
 - LAY-01 stopped inventing canvases. Three faults, all found by the third run on real code: the
   "provably smaller" exoneration demanded *both* sides resolve, so any adaptive width computed from
   live geometry made a 280pt-tall card look like an artboard; the scaleEffect and the frame were

@@ -451,9 +451,18 @@ def build_chains(code_lines: Sequence[str]) -> List[Chain]:
         numbers = [index + 1]
         parts = [code_lines[index].strip()]
         cursor = index + 1
-        while cursor < total and code_lines[cursor].lstrip().startswith("."):
+        # `.frame(\n  width: 381,\n  height: 373\n)` is one modifier. Breaking
+        # the chain at the first line left the call truncated, so nothing after
+        # the opening paren was ever read — a silent miss for LAY-02 and LAY-03,
+        # not merely for the composition marker that could not suppress it.
+        pending = parts[0].count("(") - parts[0].count(")")
+        while cursor < total:
+            text = code_lines[cursor]
+            if pending <= 0 and not text.lstrip().startswith("."):
+                break
             numbers.append(cursor + 1)
-            parts.append(code_lines[cursor].strip())
+            parts.append(text.strip())
+            pending += text.count("(") - text.count(")")
             cursor += 1
 
         spans: List[Tuple[int, int]] = []
@@ -647,11 +656,18 @@ def describe(value: str, number: Optional[float]) -> str:
 
 
 def fixed_extent(value: Optional[str]) -> bool:
-    """A frame dimension that pins a size, as opposed to letting it stretch."""
+    """A frame dimension that pins a size, as opposed to letting it stretch.
+
+    A size taken from live geometry — `proxy.size.width` inside a
+    GeometryReader — is "fill whatever the parent offers", the opposite of a
+    fixed artboard, so it is not a pinned extent however concrete it looks.
+    """
     if value is None:
         return False
     text = value.strip()
-    return bool(text) and ".infinity" not in text and text != "nil"
+    if not text or ".infinity" in text or text == "nil":
+        return False
+    return not GEOMETRY_RE.search(text)
 
 
 def provably_smaller_than_screen(
@@ -858,11 +874,13 @@ def check_layout(
 
     regions = type_regions(source.code_lines)
     for scale_line in static_scales:
-        pair = next(
-            (item for item in canvas_frames if same_region(regions, scale_line, item[0])), None
-        )
-        if pair is None:
+        candidates = [item for item in canvas_frames if same_region(regions, scale_line, item[0])]
+        if not candidates:
             continue
+        # The frame this scaleEffect actually scales is the one just above it.
+        # Reporting the first in the file sent the reader to a different frame.
+        above = [item for item in candidates if item[0] <= scale_line]
+        pair = max(above, key=lambda item: item[0]) if above else candidates[0]
         frame_line, dimensions = pair
         findings.append(
             Finding(
@@ -1302,6 +1320,15 @@ def run_constants(args: argparse.Namespace) -> int:
         if "." not in name and any(key.endswith("." + name) for key in table):
             continue  # the bare alias of a qualified entry, not a second constant
         number = resolve_number(name, table)
+        if number is None:
+            size = SIZE_LITERAL_RE.match(table[name].strip())
+            if size:
+                pair = [resolve_number(size.group(index), table) for index in (1, 2)]
+                if all(value is not None for value in pair):
+                    rows.append(
+                        (name, table[name], "{}×{}".format(*[format_number(v) for v in pair]))
+                    )
+                    continue
         rows.append((name, table[name], "—" if number is None else format_number(number)))
 
     if args.format == "json":

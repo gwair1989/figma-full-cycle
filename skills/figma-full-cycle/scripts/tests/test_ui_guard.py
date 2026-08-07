@@ -121,6 +121,28 @@ class TestLayoutRules(GuardTestCase):
         )
         self.assertNotIn("LAY-02", rules)
 
+    def test_a_multi_line_frame_is_read_like_a_one_line_frame(self) -> None:
+        # Not a formatting nicety: the chain broke at the opening paren, so
+        # nothing inside the call was ever seen. Same code, same findings.
+        one_line = self.rules_for(
+            "struct A: View { var body: some View {\n"
+            "    Color.red.frame(width: 381, height: 373)\n"
+            "} }\n"
+        )
+        many_lines = self.rules_for(
+            "struct A: View { var body: some View {\n"
+            "    Color.red\n"
+            "        .frame(\n"
+            "            width: 381,\n"
+            "            height: 373\n"
+            "        )\n"
+            "} }\n"
+        )
+
+        self.assertEqual(sorted(one_line), sorted(many_lines))
+        self.assertIn("LAY-02", many_lines)
+        self.assertIn("LAY-03", many_lines)
+
     def test_derived_width_is_reported(self) -> None:
         rules = self.rules_for(
             "struct V: View { var body: some View {\n"
@@ -527,6 +549,46 @@ class TestCanvasPairing(GuardTestCase):
 
         self.assertNotIn("LAY-01", rules)
 
+    def test_filling_the_parent_is_not_a_canvas(self) -> None:
+        # `.frame(width: proxy.size.width, ...)` inside a GeometryReader is
+        # "take whatever the parent offers" — the opposite of an artboard.
+        rules = self.rules_for(
+            "struct V: View {\n"
+            "    var body: some View {\n"
+            "        GeometryReader { proxy in\n"
+            "            content\n"
+            "                .frame(width: proxy.size.width, height: proxy.size.height)\n"
+            "                .scaleEffect(scale)\n"
+            "        }\n"
+            "    }\n"
+            "}\n",
+            "--reference-canvas",
+            "393x852",
+        )
+
+        self.assertNotIn("LAY-01", rules)
+
+    def test_the_pair_points_at_the_frame_directly_above(self) -> None:
+        self.write(
+            "View.swift",
+            "struct V: View {\n"  # 1
+            "    var body: some View {\n"  # 2
+            "        VStack {\n"  # 3
+            "            card\n"  # 4
+            "                .frame(width: cardWidth, height: cardHeight)\n"  # 5
+            "                .scaleEffect(scale)\n"  # 6
+            "            other\n"  # 7
+            "                .frame(width: 393, height: 852)\n"  # 8
+            "        }\n"
+            "    }\n"
+            "}\n",
+        )
+        result = self.check("View.swift", "--reference-canvas", "393x852", "--format", "json")
+        findings = [f for f in json.loads(result.stdout)["findings"] if f["rule"] == "LAY-01"]
+
+        self.assertTrue(findings)
+        self.assertIn("(line 5)", findings[0]["message"])
+
     def test_the_canonical_case_still_fires(self) -> None:
         rules = self.rules_for(
             "enum GeometryData {\n"
@@ -569,6 +631,17 @@ class TestCanvasPairing(GuardTestCase):
 
         self.assertIn("LAY-01", rules)
         self.assertIn("LAY-03", rules)
+
+    def test_a_size_constant_shows_its_value_not_a_dash(self) -> None:
+        # A CGSize is read perfectly well — it is simply not a scalar, and the
+        # legend beside `—` says the resolver could not read it, which lied.
+        self.write(
+            "View.swift",
+            "enum S {\n    static let clusterSize = CGSize(width: 381, height: 373.85)\n}\n",
+        )
+        result = run_cli("constants", "--project-root", str(self.root), "View.swift")
+
+        self.assertIn("381×373.85", result.stdout)
 
     def test_a_resolved_value_keeps_the_declared_precision(self) -> None:
         self.write("View.swift", "enum S { static let w: CGFloat = 578.2218 }\n")
