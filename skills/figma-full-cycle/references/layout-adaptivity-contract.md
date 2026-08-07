@@ -36,7 +36,7 @@ content
 
 That is an aspect-fit of the artboard: a different aspect ratio produces letterboxing, not adaptation. The screen container stretches instead: `.frame(maxWidth: .infinity, maxHeight: .infinity)`.
 
-Detection: `.frame(width:` / `height:` with a number equal to the reference canvas size next to `.scaleEffect(`.
+Detection: `.scaleEffect(` in a file that also pins **both** frame dimensions. The size does not have to be a literal — a named constant is the same canvas, and `.frame(width: OnboardingLayout.width, height: OnboardingLayout.height)` is the shape this rule was written from. `scripts/ui_guard.py` resolves constants through the files it is given and falls back to flagging any fully pinned frame it cannot resolve.
 
 ### LAY-02 — no hard frame on `Color` and shapes
 
@@ -116,6 +116,8 @@ Detection: `.background(` before `.frame(maxWidth: .infinity` in one chain; `.ig
 ### LAY-09 — no `scaleEffect` on text-bearing containers
 
 The layer is rasterized and scaled as a whole: text is not re-laid-out at the final size, Dynamic Type is effectively disabled, and a non-integral factor adds blur. `scaleEffect` is for decorative graphics and animation, never as an adaptation mechanism.
+
+Detection: a `.scaleEffect(` whose factor is **static** — a literal, a constant or a plain symbol — in a file carrying `Text`. A factor driven by state (`configuration.isPressed ? 0.97 : 1`, a comparison, an animation flag) is the animation case this rule permits and is not a finding; press feedback in a `ButtonStyle` is the common shape.
 
 ### LAY-10 — geometry arithmetic requires a derivation
 

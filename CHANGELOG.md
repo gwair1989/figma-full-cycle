@@ -79,6 +79,25 @@ versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `/usr/bin/python3` 3.9 from the Xcode Command Line Tools), skill lint, shell syntax.
 - `tools/pre-push` — optional git hook that runs `check.sh` before a push.
 
+### Fixed
+
+- `ui_guard.py` resolves named constants instead of matching literals only. The first version was
+  blind to `.frame(width: OnboardingLayout.width, height: OnboardingLayout.height)` — the exact
+  fixed-canvas shape LAY-01 was written from — while reporting 55 lesser findings on the same file
+  and looking healthy. Found by the first run on a real codebase (PetCare onboarding), not by the
+  test suite, whose fixtures were all literals. Resolution follows one constant through another and
+  prints the resolved value in the finding (`K.w = 393`).
+- LAY-01 no longer keys on a size matching the reference canvas. A frame pinning **both**
+  dimensions is the canvas shape whether the sizes are literals, named constants, or symbols the
+  script cannot resolve at all; `maxWidth: .infinity` and icon-sized frames are not.
+- Findings anchor to the line carrying the modifier instead of the first line of the chain. The old
+  anchor could land on a closing paren belonging to a different call, which put waivers out of
+  reach — and adding the waiver comment re-split the chain and moved the anchor again. Both
+  documented waiver positions now work.
+- LAY-09 no longer fires on every `scaleEffect` in a file that happens to contain `Text`. A factor
+  driven by state — `configuration.isPressed ? 0.97 : 1` and the like — is the animation the rule
+  permits; press feedback in a `ButtonStyle` was a guaranteed false positive.
+
 ### Changed
 
 - Preflight no longer reads the Layout, Colors and Strings contracts. The audit resolves its six

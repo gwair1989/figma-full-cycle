@@ -184,6 +184,222 @@ class TestLayoutRules(GuardTestCase):
         self.assertNotIn("LAY-10", documented)
 
 
+class TestNamedConstants(GuardTestCase):
+    """A value with a name is still the value. Literal-only detection missed the
+    canonical fixed-canvas case while reporting dozens of lesser findings."""
+
+    LITERAL = (
+        "struct V: View { var body: some View {\n"
+        '    Text("x")\n'
+        "        .frame(width: 393, height: 852)\n"
+        "        .scaleEffect(0.9)\n"
+        "        .offset(x: 12, y: 34)\n"
+        "} }\n"
+    )
+
+    NAMED = (
+        "enum K {\n"
+        "    static let w: CGFloat = 393\n"
+        "    static let h: CGFloat = 852\n"
+        "    static let s: CGFloat = 0.9\n"
+        "    static let dx: CGFloat = 12\n"
+        "    static let dy: CGFloat = 34\n"
+        "}\n"
+        "struct V: View { var body: some View {\n"
+        '    Text("x")\n'
+        "        .frame(width: K.w, height: K.h)\n"
+        "        .scaleEffect(K.s)\n"
+        "        .offset(x: K.dx, y: K.dy)\n"
+        "} }\n"
+    )
+
+    def test_named_constants_find_what_literals_find(self) -> None:
+        literal = sorted(self.rules_for(self.LITERAL))
+        named = sorted(self.rules_for(self.NAMED))
+
+        self.assertEqual(literal, named)
+        self.assertIn("LAY-01", named)
+
+    def test_a_constant_defined_through_another_constant_resolves(self) -> None:
+        rules = self.rules_for(
+            "enum GeometryData {\n"
+            "    static let referenceCanvasWidth: CGFloat = 393\n"
+            "    static let referenceCanvasHeight: CGFloat = 852\n"
+            "}\n"
+            "enum OnboardingLayout {\n"
+            "    static let width = GeometryData.referenceCanvasWidth\n"
+            "    static let height = GeometryData.referenceCanvasHeight\n"
+            "}\n"
+            "struct V: View { var body: some View {\n"
+            '    Text("x")\n'
+            "        .frame(width: OnboardingLayout.width, height: OnboardingLayout.height)\n"
+            "        .scaleEffect(canvasScale)\n"
+            "} }\n",
+            "--reference-canvas",
+            "393x852",
+        )
+
+        self.assertIn("LAY-01", rules)
+        self.assertIn("LAY-03", rules)
+
+    def test_the_resolved_value_appears_in_the_message(self) -> None:
+        self.write("View.swift", self.NAMED)
+        result = self.check("View.swift")
+
+        self.assertIn("K.w = 393", result.stderr)
+
+    def test_an_unresolvable_pinned_frame_still_raises_the_canvas(self) -> None:
+        rules = self.rules_for(
+            "struct V: View { var body: some View {\n"
+            '    Text("x")\n'
+            "        .frame(width: someWidth, height: someHeight)\n"
+            "        .scaleEffect(scale)\n"
+            "} }\n"
+        )
+
+        self.assertIn("LAY-01", rules)
+
+    def test_a_stretching_frame_is_not_a_canvas(self) -> None:
+        rules = self.rules_for(
+            "struct V: View { var body: some View {\n"
+            '    Text("x")\n'
+            "        .frame(maxWidth: .infinity, maxHeight: .infinity)\n"
+            "        .scaleEffect(0.9)\n"
+            "} }\n"
+        )
+
+        self.assertNotIn("LAY-01", rules)
+
+    def test_an_icon_sized_frame_is_not_a_canvas(self) -> None:
+        rules = self.rules_for(
+            "struct V: View { var body: some View {\n"
+            '    Text("x")\n'
+            '    Image("badge")\n'
+            "        .frame(width: 24, height: 24)\n"
+            "        .scaleEffect(0.9)\n"
+            "} }\n"
+        )
+
+        self.assertNotIn("LAY-01", rules)
+
+    def test_a_name_holding_two_different_values_does_not_resolve(self) -> None:
+        rules = self.rules_for(
+            "enum A { static let size: CGFloat = 393 }\n"
+            "enum B { static let size: CGFloat = 24 }\n"
+            "struct V: View { var body: some View {\n"
+            '    Image("badge").frame(width: size, height: size)\n'
+            "} }\n"
+        )
+
+        self.assertNotIn("LAY-03", rules)
+
+
+class TestFindingAnchoring(GuardTestCase):
+    """A finding must land on the line carrying the modifier: anchoring at the
+    chain start put waivers out of reach and moved when a comment was added."""
+
+    CHAIN = (
+        "struct V: View { var body: some View {\n"  # 1
+        '    Text("x")\n'  # 2
+        "        .frame(width: 393, height: 852)\n"  # 3
+        "        .scaleEffect(0.9)\n"  # 4
+        "        .offset(x: 12, y: 34)\n"  # 5
+        "} }\n"
+    )
+
+    def lines_by_rule(self, body: str) -> dict:
+        self.write("View.swift", body)
+        result = self.check("View.swift", "--format", "json")
+        payload = json.loads(result.stdout)
+        mapping: dict = {}
+        for item in payload["findings"]:
+            mapping.setdefault(item["rule"], set()).add(item["line"])
+        return mapping
+
+    def test_each_finding_lands_on_its_own_modifier(self) -> None:
+        lines = self.lines_by_rule(self.CHAIN)
+
+        self.assertEqual(lines["LAY-03"], {3})
+        self.assertEqual(lines["LAY-09"], {4})
+        self.assertEqual(lines["LAY-04"], {5})
+
+    def test_a_finding_after_a_closing_paren_still_lands_on_its_line(self) -> None:
+        lines = self.lines_by_rule(
+            "struct V: View { var body: some View {\n"  # 1
+            '    Text("x")\n'  # 2
+            "        .frame(\n"  # 3
+            "            maxWidth: .infinity\n"  # 4
+            "        )\n"  # 5
+            "        .offset(x: 12, y: 34)\n"  # 6
+            "} }\n"
+        )
+
+        self.assertEqual(lines["LAY-04"], {6})
+
+    def test_a_waiver_above_the_modifier_works(self) -> None:
+        self.write(
+            "View.swift",
+            "struct V: View { var body: some View {\n"
+            '    Text("x")\n'
+            "        .frame(maxWidth: .infinity)\n"
+            "        // ui-guard: allow LAY-04 — animated entrance, reset on completion\n"
+            "        .offset(x: 12, y: 34)\n"
+            "} }\n",
+        )
+        result = self.check("View.swift")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("1 waived", result.stdout)
+
+    def test_a_waiver_on_the_modifier_line_works(self) -> None:
+        self.write(
+            "View.swift",
+            "struct V: View { var body: some View {\n"
+            '    Text("x")\n'
+            "        .frame(maxWidth: .infinity)\n"
+            "        .offset(x: 12, y: 34) // ui-guard: allow LAY-04 — animated entrance\n"
+            "} }\n",
+        )
+        result = self.check("View.swift")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("1 waived", result.stdout)
+
+
+class TestScaleEffectScope(GuardTestCase):
+    def test_press_feedback_in_a_button_style_is_not_a_finding(self) -> None:
+        rules = self.rules_for(
+            "struct CardButtonStyle: ButtonStyle {\n"
+            "    func makeBody(configuration: Configuration) -> some View {\n"
+            "        configuration.label\n"
+            "            .padding(16)\n"
+            "            .scaleEffect(configuration.isPressed ? 0.97 : 1)\n"
+            "    }\n"
+            "}\n"
+            'struct Card: View { var body: some View { Text("Continue") } }\n'
+        )
+
+        self.assertNotIn("LAY-09", rules)
+
+    def test_a_static_scale_over_text_is_still_a_finding(self) -> None:
+        rules = self.rules_for(
+            "struct V: View { var body: some View {\n"
+            '    Text("x").scaleEffect(canvasScale)\n'
+            "} }\n"
+        )
+
+        self.assertIn("LAY-09", rules)
+
+    def test_a_file_without_text_is_left_alone(self) -> None:
+        rules = self.rules_for(
+            "struct V: View { var body: some View {\n"
+            '    Image("decor").scaleEffect(0.9)\n'
+            "} }\n"
+        )
+
+        self.assertNotIn("LAY-09", rules)
+
+
 class TestColorRules(GuardTestCase):
     def test_every_literal_form_is_detected(self) -> None:
         forms = (

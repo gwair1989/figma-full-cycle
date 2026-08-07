@@ -199,13 +199,13 @@ The commit subject in the table is the **actual** one from git; one stage = one 
 
 | Rule | Detection | Result (hits / clean) | Status |
 |------|-----------|-----------------------|--------|
-| LAY-01 fixed canvas + `scaleEffect` | `.frame(width:` with the reference size next to `.scaleEffect(` | | `todo` |
+| LAY-01 fixed canvas + `scaleEffect` | `.scaleEffect(` plus a frame pinning both dimensions — literal or named constant | | `todo` |
 | LAY-02 hard frame on `Color`/shape | `Color`/`Rectangle`/`RoundedRectangle` + numeric `.frame(width:`/`height:` | | `todo` |
 | LAY-03 hard/derived screen-level size | arithmetic inside `.frame(width:`/`height:`; numeric `width:` ≥ 300 | | `todo` |
 | LAY-04 `position`/static `offset` as layout | any `.position(`; `.offset(` outside animation | | `todo` |
 | LAY-07 inset snap (−2…+4pt tolerance) | inset literals in the 14–20 range | | `todo` |
 | LAY-08 container modifier order | `.background(` before `.frame(maxWidth: .infinity`; `.ignoresSafeArea()` on a content container | | `todo` |
-| LAY-09 `scaleEffect` over text | `.scaleEffect(` on a container carrying text | | `todo` |
+| LAY-09 `scaleEffect` over text | a **static** `.scaleEffect(` factor in a file with `Text`; state-driven factors are the permitted animation case | | `todo` |
 | LAY-10 undocumented geometry arithmetic | `safeAreaInsets`/`geo.` in the view layer without a derivation comment | | `todo` |
 | COL-01 palette referenced from a view | a palette symbol used outside the files that own the semantic layer | | `todo` |
 | COL-02 duplicate palette entry | two palette entries with equal components | | `todo` |

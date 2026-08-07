@@ -13,6 +13,14 @@ Deliberately partial, and it says so: rules that need project knowledge or a
 screenshot cannot be regex-checked, and a clean run is only as wide as the
 coverage note printed with it. Swift is parsed by pattern, not by grammar.
 
+Numeric values are resolved through named constants declared in the files it is
+given, because a value with a name is still the value — a first version matched
+literals only and so stayed silent on `.frame(width: OnboardingLayout.width,
+height: OnboardingLayout.height)`, the exact fixed-canvas shape LAY-01 exists to
+catch, while reporting dozens of lesser findings and looking healthy. Resolution
+is file-scoped and best-effort; a frame that pins both dimensions is treated as
+a canvas even when the size cannot be resolved at all.
+
 Waive a finding in code with a comment on the line or the line above:
 
     // ui-guard: allow LAY-04 — animated entrance, restored on completion
@@ -25,7 +33,7 @@ import json
 import re
 import subprocess
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
@@ -63,6 +71,19 @@ UNCHECKED = {
 }
 
 WAIVER_RE = re.compile(r"//\s*ui-guard:\s*allow\s+([A-Z]{3}-\d{2})")
+CONSTANT_RE = re.compile(
+    r"^(?:public\s+|private\s+|internal\s+|fileprivate\s+|open\s+)*"
+    r"(?:static\s+)?(?:let|var)\s+(\w+)\s*(?::\s*[^=]+?)?\s*=\s*(.+)$"
+)
+TYPE_RE = re.compile(
+    r"^(?:public\s+|private\s+|internal\s+|fileprivate\s+|open\s+|final\s+)*"
+    r"(?:enum|struct|class|extension)\s+(\w+)"
+)
+WRAPPER_CALL_RE = re.compile(r"^(?:CGFloat|Double|Float|Int)\s*\(\s*([^()]+?)\s*\)$")
+IDENTIFIER_PATH_RE = re.compile(r"^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*$")
+# `.scaleEffect(configuration.isPressed ? 0.97 : 1)` is the animation case the
+# rule explicitly permits, not an adaptation mechanism.
+CONDITIONAL_RE = re.compile(r"\?.*:|==|!=|>=|<=|[<>]")
 STRING_RE = re.compile(r'"(?:\\.|[^"\\])*"')
 HEX_STRING_RE = re.compile(r'"\s*#?[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?\s*"')
 ARITHMETIC_RE = re.compile(r"[\w.)\]]\s*[-+*/]\s*[\w.(]")
@@ -126,11 +147,28 @@ class Finding:
 
 @dataclass
 class Chain:
-    """Consecutive lines forming one modifier chain, joined for matching."""
+    """Consecutive lines forming one modifier chain, joined for matching.
+
+    `spans` maps each source line to where it begins in `text`, so a finding
+    lands on the line that actually carries the offending modifier rather than
+    on whatever line the chain happens to start with. Anchoring at the start is
+    what made waivers unusable: a chain can begin on a closing paren belonging
+    to an entirely different call, and adding the waiver comment re-split the
+    chain and moved the anchor again.
+    """
 
     start_line: int
     line_numbers: List[int]
     text: str
+    spans: List[Tuple[int, int]] = field(default_factory=list)
+
+    def line_at(self, offset: int) -> int:
+        line = self.start_line
+        for start, number in self.spans:
+            if start > offset:
+                break
+            line = number
+        return line
 
 
 class SourceFile:
@@ -145,6 +183,7 @@ class SourceFile:
         self.string_lines = [STRING_RE.findall(line) for line in self.raw_lines]
         self.chains = build_chains(self.code_lines)
         self.preview_lines = preview_regions(self.raw_lines)
+        self.constants = collect_constants(self.code_lines)
 
     def has_text_views(self) -> bool:
         return any(re.search(r"\bText\s*\(", line) for line in self.code_lines)
@@ -157,6 +196,75 @@ def strip_noncode(line: str) -> str:
     if marker != -1:
         blanked = blanked[:marker]
     return blanked
+
+
+def collect_constants(code_lines: Sequence[str]) -> Dict[str, str]:
+    """Named numeric constants declared in a file, qualified by their type.
+
+    A guard that only understands literals is blind to the ordinary practice of
+    naming a value, and that is exactly how the canonical fixed-canvas case
+    escaped detection: `.frame(width: OnboardingLayout.width, ...)` reads as an
+    unknown symbol while being the very pattern LAY-01 exists to catch.
+    """
+    constants: Dict[str, str] = {}
+    ambiguous: set = set()
+    scopes: List[Tuple[int, str]] = []
+    depth = 0
+
+    for line in code_lines:
+        stripped = line.strip()
+
+        while scopes and depth <= scopes[-1][0]:
+            scopes.pop()
+
+        declaration = CONSTANT_RE.match(stripped)
+        if declaration:
+            name = declaration.group(1)
+            value = declaration.group(2).strip().rstrip(",;")
+            qualified = "{}.{}".format(scopes[-1][1], name) if scopes else name
+            constants[qualified] = value
+            if name in constants and constants[name] != value:
+                ambiguous.add(name)
+            else:
+                constants[name] = value
+
+        type_declaration = TYPE_RE.match(stripped)
+        if type_declaration and "{" in stripped:
+            scopes.append((depth, type_declaration.group(1)))
+
+        depth += stripped.count("{") - stripped.count("}")
+
+    for name in ambiguous:
+        constants.pop(name, None)
+    return constants
+
+
+def resolve_number(expression: str, constants: Dict[str, str], depth: int = 0) -> Optional[float]:
+    """A literal, or a named constant that resolves to one."""
+    text = expression.strip()
+    if not text or depth > 3:
+        return None
+
+    try:
+        return float(text)
+    except ValueError:
+        pass
+
+    wrapper = WRAPPER_CALL_RE.match(text)
+    if wrapper:
+        return resolve_number(wrapper.group(1), constants, depth + 1)
+
+    if not IDENTIFIER_PATH_RE.match(text):
+        return None
+
+    parts = text.split(".")
+    for start in range(len(parts)):
+        candidate = ".".join(parts[start:])
+        value = constants.get(candidate)
+        if value is None or value.strip() == text:
+            continue
+        return resolve_number(value, constants, depth + 1)
+    return None
 
 
 def build_chains(code_lines: Sequence[str]) -> List[Chain]:
@@ -175,7 +283,21 @@ def build_chains(code_lines: Sequence[str]) -> List[Chain]:
             numbers.append(cursor + 1)
             parts.append(code_lines[cursor].strip())
             cursor += 1
-        chains.append(Chain(start_line=index + 1, line_numbers=numbers, text=" ".join(parts)))
+
+        spans: List[Tuple[int, int]] = []
+        position = 0
+        for part, number in zip(parts, numbers):
+            spans.append((position, number))
+            position += len(part) + 1  # the joining space
+
+        chains.append(
+            Chain(
+                start_line=index + 1,
+                line_numbers=numbers,
+                text=" ".join(parts),
+                spans=spans,
+            )
+        )
         index = cursor if cursor > index + 1 else index + 1
     return chains
 
@@ -215,9 +337,9 @@ def balanced_args(text: str, start: int) -> str:
     return text[start + 1 :]
 
 
-def frame_calls(text: str) -> Iterable[str]:
+def frame_calls(text: str) -> Iterable[Tuple[int, str]]:
     for match in re.finditer(r"\.frame\s*\(", text):
-        yield balanced_args(text, match.end() - 1)
+        yield match.start(), balanced_args(text, match.end() - 1)
 
 
 def labelled_value(args: str, label: str) -> Optional[str]:
@@ -249,28 +371,60 @@ def numeric(value: str) -> Optional[float]:
 # --------------------------------------------------------------------------
 
 
+def describe(value: str, number: Optional[float]) -> str:
+    """`K.w` alone is unreadable in a finding; `K.w = 393` is actionable."""
+    text = value.strip()
+    if number is None:
+        return text
+    if numeric(text) is not None:
+        return "{:g}".format(number)
+    return "{} = {:g}".format(text, number)
+
+
+def fixed_extent(value: Optional[str]) -> bool:
+    """A frame dimension that pins a size, as opposed to letting it stretch."""
+    if value is None:
+        return False
+    text = value.strip()
+    return bool(text) and ".infinity" not in text and text != "nil"
+
+
 def check_layout(source: SourceFile, canvas: Optional[Tuple[float, float]]) -> List[Finding]:
     findings: List[Finding] = []
     canvas_sizes = set(canvas) if canvas else set()
+    constants = source.constants
 
-    file_has_scale_effect = any(".scaleEffect(" in line for line in source.code_lines)
-    file_has_canvas_frame = False
+    canvas_frames: List[Tuple[int, str]] = []
 
     for chain in source.chains:
         text = chain.text
-        line = chain.start_line
 
-        for args in frame_calls(text):
+        for frame_offset, args in frame_calls(text):
+            line = chain.line_at(frame_offset)
             width = labelled_value(args, "width")
             height = labelled_value(args, "height")
+            width_number = resolve_number(width, constants) if width else None
+            height_number = resolve_number(height, constants) if height else None
 
-            for label, value in (("width", width), ("height", height)):
+            # Both dimensions pinned is the canvas shape, whether the sizes are
+            # literals, named constants, or symbols this script cannot resolve.
+            if fixed_extent(width) and fixed_extent(height):
+                resolved = [n for n in (width_number, height_number) if n is not None]
+                matches_canvas = any(n in canvas_sizes for n in resolved) if canvas_sizes else False
+                if matches_canvas or (not resolved and not canvas_sizes) or any(n >= 300 for n in resolved):
+                    canvas_frames.append(
+                        (
+                            line,
+                            "{} × {}".format(describe(width, width_number), describe(height, height_number)),
+                        )
+                    )
+
+            for label, value, number in (
+                ("width", width, width_number),
+                ("height", height, height_number),
+            ):
                 if value is None:
                     continue
-                number = numeric(value)
-
-                if number is not None and (number in canvas_sizes or (not canvas_sizes and number >= 300)):
-                    file_has_canvas_frame = True
 
                 if number is None and ARITHMETIC_RE.search(value):
                     findings.append(
@@ -289,8 +443,8 @@ def check_layout(source: SourceFile, canvas: Optional[Tuple[float, float]]) -> L
                             source.display,
                             line,
                             "LAY-03",
-                            "screen-level .frame({}: {:g}) — stretch with maxWidth/maxHeight instead".format(
-                                label, number
+                            "screen-level .frame({}: {}) — stretch with maxWidth/maxHeight instead".format(
+                                label, describe(value, number)
                             ),
                         )
                     )
@@ -301,7 +455,9 @@ def check_layout(source: SourceFile, canvas: Optional[Tuple[float, float]]) -> L
                             source.display,
                             line,
                             "LAY-02",
-                            "hard .frame({}: {:g}) on a greedy shape — the frame shrinks it".format(label, number),
+                            "hard .frame({}: {}) on a greedy shape — the frame shrinks it".format(
+                                label, describe(value, number)
+                            ),
                         )
                     )
 
@@ -310,7 +466,7 @@ def check_layout(source: SourceFile, canvas: Optional[Tuple[float, float]]) -> L
             findings.append(
                 Finding(
                     source.display,
-                    line,
+                    chain.line_at(position.start()),
                     "LAY-04",
                     ".position(...) is not a layout mechanism — position with alignment, space with padding",
                 )
@@ -320,12 +476,16 @@ def check_layout(source: SourceFile, canvas: Optional[Tuple[float, float]]) -> L
         if offset and not ANIMATION_RE.search(text):
             args = balanced_args(text, offset.end() - 1)
             values = [labelled_value(args, "x"), labelled_value(args, "y")]
-            static = [value for value in values if value is not None and numeric(value) is not None]
+            static = [
+                value
+                for value in values
+                if value is not None and resolve_number(value, constants) is not None
+            ]
             if static:
                 findings.append(
                     Finding(
                         source.display,
-                        line,
+                        chain.line_at(offset.start()),
                         "LAY-04",
                         "static .offset({}) used as layout — allowed only for animation, with the reason recorded".format(
                             args.strip()
@@ -339,33 +499,42 @@ def check_layout(source: SourceFile, canvas: Optional[Tuple[float, float]]) -> L
             findings.append(
                 Finding(
                     source.display,
-                    line,
+                    chain.line_at(background),
                     "LAY-08",
                     ".background(...) before the stretch frame — it paints the content size, not the screen",
                 )
             )
 
-        if ".scaleEffect(" in text and source.has_text_views():
-            findings.append(
-                Finding(
-                    source.display,
-                    line,
-                    "LAY-09",
-                    "scaleEffect in a file with Text — rasterized scaling disables re-layout and Dynamic Type",
+        scale = re.search(r"\.scaleEffect\s*\(", text)
+        if scale and source.has_text_views():
+            factor = balanced_args(text, scale.end() - 1)
+            # A factor driven by state is the animation the rule allows; a
+            # static one is scaling used as an adaptation mechanism.
+            if not CONDITIONAL_RE.search(factor) and not ANIMATION_RE.search(factor):
+                findings.append(
+                    Finding(
+                        source.display,
+                        chain.line_at(scale.start()),
+                        "LAY-09",
+                        "static scaleEffect({}) over text — rasterized scaling disables re-layout and Dynamic Type".format(
+                            factor.strip()
+                        ),
+                    )
                 )
-            )
 
-    if file_has_scale_effect and file_has_canvas_frame:
-        line = next(
-            (number for number, text in enumerate(source.code_lines, start=1) if ".scaleEffect(" in text),
-            1,
-        )
+    scale_lines = [
+        number for number, text in enumerate(source.code_lines, start=1) if ".scaleEffect(" in text
+    ]
+    if scale_lines and canvas_frames:
+        frame_line, dimensions = canvas_frames[0]
         findings.append(
             Finding(
                 source.display,
-                line,
+                scale_lines[0],
                 "LAY-01",
-                "fixed canvas frame plus scaleEffect — an aspect-fit of the artboard, not adaptation",
+                "scaleEffect over a pinned {} frame (line {}) — an aspect-fit of the artboard, not adaptation".format(
+                    dimensions, frame_line
+                ),
             )
         )
 
