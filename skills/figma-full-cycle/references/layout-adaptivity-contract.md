@@ -36,7 +36,7 @@ content
 
 That is an aspect-fit of the artboard: a different aspect ratio produces letterboxing, not adaptation. The screen container stretches instead: `.frame(maxWidth: .infinity, maxHeight: .infinity)`.
 
-Detection: `.scaleEffect(` in a file that also pins **both** frame dimensions, where the pinned block is not provably smaller than the screen. The size does not have to be a literal — a named constant is the same canvas, and `.frame(width: OnboardingLayout.width, height: OnboardingLayout.height)`, resolving through `CGSize(width: 393, height: 852)` in another file, is the exact shape this rule was written from. `scripts/ui_guard.py` resolves constants across every file in the run, through `CGSize` members and through one constant naming another, and treats what it cannot resolve as the screen.
+Detection: `.scaleEffect(` in a file that also pins **both** frame dimensions, where the pinned block is not provably smaller than the screen. The size does not have to be a literal — a named constant is the same canvas, and `.frame(width: OnboardingLayout.width, height: OnboardingLayout.height)`, resolving through `CGSize(width: 393, height: 852)` in another file, is the exact shape this rule was written from. `scripts/ui_guard.py` resolves constants across every file in the run, covering literals, one-line enums, multi-line declarations, computed properties, `as` casts, any `Type(width:height:)` and one constant naming another. What it cannot resolve counts as the screen, so an unfamiliar form costs a false positive rather than a silent miss — and `ui_guard.py constants` prints what it read, which is how to tell those two apart in one command.
 
 ### LAY-02 — no hard frame on `Color` and shapes
 

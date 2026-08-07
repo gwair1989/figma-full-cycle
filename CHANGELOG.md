@@ -96,6 +96,20 @@ versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- A qualified constant reference no longer borrows an unrelated one. With a single table for the
+  whole run, `Multi.canvas.height` matched a bare `height` declared in another type entirely — a
+  wrong number printed in a finding, and a wrong number deciding whether a frame was smaller than
+  the screen. It went unnoticed because every fixture so far used the same 393×852 on both sides.
+  Suffix matching now stops at two components, and a recognised `.width`/`.height` access resolves
+  through its own base or not at all.
+- Constant resolution covers the declaration forms a project actually writes, enumerated rather than
+  guessed at: literals, one-line `enum`s, multi-line declarations, computed properties (single and
+  multi-line, with or without `return`), `as` casts, any `Type(width:height:)` and not only `CGSize`,
+  and one constant naming another. A test matrix asserts all nine reach LAY-01 and LAY-03, each with
+  a distinct value so a leaked one shows as a wrong number instead of an accidental pass.
+- New `ui_guard.py constants` prints what the resolver read, marking anything it cannot read with
+  `—`. Every gap found so far was a declaration form nobody could see failing; this turns the next
+  one into a command instead of a bisection over fixtures.
 - Constant resolution reaches the shapes a real project uses. The first version read literals in a
   single file, so it stayed silent on `OnboardingLayout.width = GeometryData.referenceCanvasSize.width`
   — layout constants in their own file, behind a `CGSize` — which is the canonical FAIL-01 case and

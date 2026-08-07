@@ -18,9 +18,15 @@ name is still the value — a first version matched literals only and so stayed
 silent on `.frame(width: OnboardingLayout.width, height: OnboardingLayout.height)`,
 the exact fixed-canvas shape LAY-01 exists to catch, while reporting dozens of
 lesser findings and looking healthy. Resolution spans every file in the run and
-reads `CGSize(width:height:)` members, since layout constants normally live in
-their own file. It stays best-effort, so it fails closed: a frame pinning both
-dimensions counts as the screen unless it is *provably* smaller.
+covers the forms a project actually writes: literals, one-line enums, multi-line
+declarations, computed properties, `as` casts, any `Type(width:height:)` and one
+constant naming another. A qualified reference never falls back to a bare last
+component, or an unrelated `Decoy.height` answers for someone else's size.
+
+It stays best-effort and therefore fails closed: a frame pinning both dimensions
+counts as the screen unless *provably* smaller, so a form nobody anticipated
+becomes a false positive rather than a silent miss. Run `constants` to see
+exactly what the resolver read.
 
 Waive a finding in code with a comment on the line or the line above:
 
@@ -90,13 +96,20 @@ TYPE_RE = re.compile(
     r"^(?:public\s+|private\s+|internal\s+|fileprivate\s+|open\s+|final\s+)*"
     r"(?:enum|struct|class|extension)\s+(\w+)"
 )
+# `static var width: CGFloat { 393 }` — a computed property is a constant too.
+COMPUTED_RE = re.compile(
+    r"(?:^|[{;]\s*)(?:public\s+|private\s+|internal\s+|fileprivate\s+|open\s+)*"
+    r"(?:static\s+)?var\s+(\w+)\s*:\s*[\w<>\[\], ?]+\s*\{\s*(?:return\s+)?([^{}]+?)\s*\}"
+)
 WRAPPER_CALL_RE = re.compile(r"^(?:CGFloat|Double|Float|Int)\s*\(\s*([^()]+?)\s*\)$")
+CAST_RE = re.compile(r"^(.+?)\s+as[!?]?\s+[\w<>\[\], ?.]+$")
 IDENTIFIER_PATH_RE = re.compile(r"^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*$")
 MEMBER_RE = re.compile(r"^(.*)\.(width|height)$")
-# `CGSize(width: 393, height: 852)` is how a reference canvas is usually
-# written; reading `.width` off it has to work or the rule reads nothing.
+# `CGSize(width: 393, height: 852)` is how a reference canvas is usually written,
+# but a project's own `CanvasSize(width:height:)` is the same thing — the label
+# pair identifies the shape, not the type name.
 SIZE_LITERAL_RE = re.compile(
-    r"^(?:CGSize|CGVector|\.init)\s*\(\s*(?:width|dx)\s*:\s*([^,]+?)\s*,\s*(?:height|dy)\s*:\s*([^)]+?)\s*\)$"
+    r"^[\w.]*\s*\(\s*(?:width|dx)\s*:\s*(.+?)\s*,\s*(?:height|dy)\s*:\s*(.+?)\s*\)$"
 )
 # `.scaleEffect(configuration.isPressed ? 0.97 : 1)` is the animation case the
 # rule explicitly permits, not an adaptation mechanism.
@@ -252,6 +265,29 @@ def strip_noncode(line: str) -> str:
     return blanked
 
 
+MAX_DECLARATION_LINES = 12
+
+
+def continued_declaration(code_lines: Sequence[str], index: int) -> str:
+    """The line, plus the lines its unclosed brackets or braces run into."""
+    parts = [code_lines[index].strip()]
+    open_round = parts[0].count("(") - parts[0].count(")")
+    # A computed property body: `var w: CGFloat {` with the value below.
+    open_curly = 1 if re.search(r"\bvar\s+\w+\s*:[^{}]*\{\s*$", parts[0]) else 0
+
+    cursor = index + 1
+    while (open_round > 0 or open_curly > 0) and cursor < len(code_lines):
+        if cursor - index > MAX_DECLARATION_LINES:
+            break
+        text = code_lines[cursor].strip()
+        parts.append(text)
+        open_round += text.count("(") - text.count(")")
+        open_curly += text.count("{") - text.count("}")
+        cursor += 1
+
+    return " ".join(parts)
+
+
 def trim_declaration(value: str) -> str:
     """Drop what belongs to the enclosing block, not to the value.
 
@@ -276,13 +312,25 @@ def collect_constants(code_lines: Sequence[str]) -> Dict[str, str]:
     scopes: List[Tuple[int, str]] = []
     depth = 0
 
-    for line in code_lines:
+    for index, line in enumerate(code_lines):
         stripped = line.strip()
 
         while scopes and depth <= scopes[-1][0]:
             scopes.pop()
 
-        declaration = CONSTANT_RE.search(stripped)
+        # The type has to be in scope before the declaration is read: on
+        # `enum K { static let w = 393 }` the constant would otherwise be
+        # recorded as a bare `w`, and a qualified `K.w` would never find it.
+        type_declaration = TYPE_RE.match(stripped)
+        if type_declaration and "{" in stripped:
+            scopes.append((depth, type_declaration.group(1)))
+
+        # A declaration whose value runs past the line end is ordinary
+        # formatting: `CGSize(\n  width: 393,\n  height: 852\n)`. Read it whole
+        # before matching, or the value is the string "CGSize(".
+        subject = continued_declaration(code_lines, index)
+
+        declaration = CONSTANT_RE.search(subject) or COMPUTED_RE.search(subject)
         if declaration:
             name = declaration.group(1)
             value = trim_declaration(declaration.group(2))
@@ -293,10 +341,6 @@ def collect_constants(code_lines: Sequence[str]) -> Dict[str, str]:
             else:
                 constants[name] = value
 
-        type_declaration = TYPE_RE.match(stripped)
-        if type_declaration and "{" in stripped:
-            scopes.append((depth, type_declaration.group(1)))
-
         depth += stripped.count("{") - stripped.count("}")
 
     for name in ambiguous:
@@ -305,10 +349,18 @@ def collect_constants(code_lines: Sequence[str]) -> Dict[str, str]:
 
 
 def lookup_constant(path: str, constants: Dict[str, str]) -> Optional[str]:
-    """The declared expression behind a name, matching the longest suffix."""
+    """The declared expression behind a name.
+
+    A qualified reference never falls through to a bare last component: with one
+    constant table for the whole run, `Multi.canvas.height` would otherwise
+    happily answer with an unrelated `Decoy.height` from another file — a wrong
+    number inside a finding, and worse, a wrong number deciding whether a frame
+    is smaller than the screen.
+    """
     text = path.strip()
     parts = text.split(".")
-    for start in range(len(parts)):
+    shortest = 1 if len(parts) == 1 else 2
+    for start in range(len(parts) - shortest + 1):
         candidate = ".".join(parts[start:])
         value = constants.get(candidate)
         if value is not None and value.strip() != text:
@@ -326,6 +378,10 @@ def resolve_number(expression: str, constants: Dict[str, str], depth: int = 0) -
         return float(text)
     except ValueError:
         pass
+
+    cast = CAST_RE.match(text)
+    if cast:
+        return resolve_number(cast.group(1), constants, depth + 1)
 
     wrapper = WRAPPER_CALL_RE.match(text)
     if wrapper:
@@ -345,6 +401,11 @@ def resolve_number(expression: str, constants: Dict[str, str], depth: int = 0) -
                 break
             base_value = lookup_constant(base_value, constants)
             seen += 1
+        # A recognised member access resolves through its base or not at all.
+        # Falling through would look up the member name on its own, which is how
+        # an unrelated constant ends up answering for someone else's size.
+        if "." in base:
+            return None
 
     if not IDENTIFIER_PATH_RE.match(text):
         return None
@@ -988,23 +1049,17 @@ def coverage_note(rules: Sequence[str]) -> List[str]:
     return lines
 
 
-def run_check(args: argparse.Namespace) -> int:
-    project_root = Path(args.project_root).resolve()
-    rules = [item.strip().upper() for item in args.rules.split(",") if item.strip()]
-
-    try:
-        canvas = parse_canvas(args.reference_canvas)
-    except ValueError as error:
-        print("error: {}".format(error), file=sys.stderr)
-        return 2
-
+def load_sources(
+    args: argparse.Namespace, project_root: Path
+) -> Tuple[Dict[str, "SourceFile"], Optional[int]]:
+    """Every Swift file this run covers, keyed by its display path."""
     paths: List[Path] = [Path(item) for item in args.files]
-    if args.changed_since:
+    if getattr(args, "changed_since", None):
         try:
             paths.extend(changed_files(project_root, args.changed_since))
         except RuntimeError as error:
             print("error: {}".format(error), file=sys.stderr)
-            return 2
+            return {}, 2
 
     swift_paths = []
     for path in paths:
@@ -1020,6 +1075,22 @@ def run_check(args: argparse.Namespace) -> int:
     for path in sorted(set(swift_paths)):
         display = display_path(path, project_root)
         sources[display] = SourceFile(path, display)
+    return sources, None
+
+
+def run_check(args: argparse.Namespace) -> int:
+    project_root = Path(args.project_root).resolve()
+    rules = [item.strip().upper() for item in args.rules.split(",") if item.strip()]
+
+    try:
+        canvas = parse_canvas(args.reference_canvas)
+    except ValueError as error:
+        print("error: {}".format(error), file=sys.stderr)
+        return 2
+
+    sources, error = load_sources(args, project_root)
+    if error is not None:
+        return error
 
     # One constant table for the whole run: a name declared in `*Style.swift`
     # and used in a view is the normal shape, not an exotic one. A bare name
@@ -1128,6 +1199,49 @@ def run_check(args: argparse.Namespace) -> int:
     return 1 if active else 0
 
 
+def run_constants(args: argparse.Namespace) -> int:
+    """Show what the resolver reads. Every gap found so far was a declaration
+    form nobody could see it failing on — this makes the next one a command."""
+    project_root = Path(args.project_root).resolve()
+    sources, error = load_sources(args, project_root)
+    if error is not None:
+        return error
+
+    table: Dict[str, str] = {}
+    for source in sources.values():
+        table.update(source.constants)
+
+    rows = []
+    for name in sorted(table):
+        if "." not in name and any(key.endswith("." + name) for key in table):
+            continue  # the bare alias of a qualified entry, not a second constant
+        number = resolve_number(name, table)
+        rows.append((name, table[name], "—" if number is None else "{:g}".format(number)))
+
+    if args.format == "json":
+        print(
+            json.dumps(
+                [{"name": n, "declared": d, "resolved": r} for n, d, r in rows],
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return 0
+
+    if not rows:
+        print("no numeric constants found in {} file(s)".format(len(sources)))
+        return 0
+
+    width = max(len(name) for name, _, _ in rows)
+    for name, declared, resolved in rows:
+        print("{:<{}}  {:>10}   {}".format(name, width, resolved, declared[:60]))
+    print(
+        "\n{} constant(s) in {} file(s); '—' means the resolver cannot read it, "
+        "and a frame it cannot read counts as screen-sized".format(len(rows), len(sources))
+    )
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Detect Layout (LAY) and Colors (COL) contract violations in Swift sources.",
@@ -1184,6 +1298,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="Findings to print before truncating (default %(default)s); --format json is never truncated",
     )
     check.set_defaults(handler=run_check)
+
+    constants = subparsers.add_parser(
+        "constants",
+        help="Show what the constant resolver reads — use it when a rule is unexpectedly quiet",
+        epilog=EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    constants.add_argument("files", nargs="*", help="Swift files to read")
+    constants.add_argument("--changed-since", help="Add files changed since this git ref")
+    constants.add_argument("--project-root", default=".")
+    constants.add_argument("--format", choices=("text", "json"), default="text")
+    constants.set_defaults(handler=run_constants)
 
     return parser
 

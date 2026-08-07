@@ -33,13 +33,18 @@ struct GoodView: View {
 """
 
 
-def run(*args: str) -> subprocess.CompletedProcess:
+def run_cli(*args: str) -> subprocess.CompletedProcess:
+    """The CLI as a user types it — subcommand included."""
     return subprocess.run(
-        [sys.executable, str(CLI), "check", *args],
+        [sys.executable, str(CLI), *args],
         text=True,
         capture_output=True,
         check=False,
     )
+
+
+def run(*args: str) -> subprocess.CompletedProcess:
+    return run_cli("check", *args)
 
 
 class GuardTestCase(unittest.TestCase):
@@ -368,6 +373,89 @@ class TestCanvasResolution(GuardTestCase):
 
         self.assertIn("LAY-01", self.rules_for(body))
         self.assertIn("LAY-01", self.rules_for(body, "--reference-canvas", "393x852"))
+
+    # Every way a project can write down a size. Each entry declares 393x852
+    # under a distinct name, so a value leaking in from elsewhere shows up as
+    # the wrong number rather than as an accidental pass.
+    DECLARATION_FORMS = {
+        "literal": "enum S {\n    static let w: CGFloat = 393\n    static let h: CGFloat = 852\n}\n",
+        "one-line enum": "enum S { static let w: CGFloat = 393 }\nenum S2 { static let h: CGFloat = 852 }\n",
+        "cgsize member": (
+            "enum Base {\n    static let size = CGSize(width: 393, height: 852)\n}\n"
+            "enum S {\n    static let w = Base.size.width\n    static let h = Base.size.height\n}\n"
+        ),
+        "multi-line cgsize": (
+            "enum Base {\n    static let size = CGSize(\n        width: 393,\n        height: 852\n    )\n}\n"
+            "enum S {\n    static let w = Base.size.width\n    static let h = Base.size.height\n}\n"
+        ),
+        "custom size type": (
+            "struct CanvasSize { let width: CGFloat; let height: CGFloat }\n"
+            "enum Base {\n    static let size = CanvasSize(width: 393, height: 852)\n}\n"
+            "enum S {\n    static let w = Base.size.width\n    static let h = Base.size.height\n}\n"
+        ),
+        "computed property": "enum S {\n    static var w: CGFloat { 393 }\n    static var h: CGFloat { return 852 }\n}\n",
+        "computed multi-line": (
+            "enum S {\n    static var w: CGFloat {\n        393\n    }\n"
+            "    static var h: CGFloat {\n        852\n    }\n}\n"
+        ),
+        "cast": "enum S {\n    static let w = 393 as CGFloat\n    static let h = 852 as CGFloat\n}\n",
+        "chained constant": (
+            "enum Base {\n    static let w: CGFloat = 393\n    static let h: CGFloat = 852\n}\n"
+            "enum S {\n    static let w = Base.w\n    static let h = Base.h\n}\n"
+        ),
+    }
+
+    CANVAS_VIEW = (
+        "struct V: View {\n"
+        "    var body: some View {\n"
+        '        Text("x")\n'
+        "            .frame(width: S.w, height: S.h)\n"
+        "            .scaleEffect(canvasScale)\n"
+        "    }\n"
+        "}\n"
+    )
+
+    def test_every_declaration_form_reaches_the_canvas_rules(self) -> None:
+        for label, declarations in self.DECLARATION_FORMS.items():
+            with self.subTest(form=label):
+                constants = "enum S2 { static let h: CGFloat = 852 }\n" if "S2" in declarations else ""
+                body = declarations + self.CANVAS_VIEW
+                if "S2" in declarations:
+                    body = declarations + self.CANVAS_VIEW.replace("S.h", "S2.h")
+                rules = self.rules_for(body, "--reference-canvas", "393x852")
+
+                self.assertIn("LAY-01", rules, "{}: canvas not detected".format(label))
+                self.assertIn("LAY-03", rules, "{}: size not resolved".format(label))
+
+    def test_a_qualified_name_never_borrows_an_unrelated_constant(self) -> None:
+        # `Multi.canvas.height` once answered with `Decoy.height` from another
+        # type — a wrong number in a finding, and a wrong number deciding
+        # whether a frame is smaller than the screen.
+        self.write(
+            "View.swift",
+            "enum Multi {\n    static let canvas = CGSize(width: 111, height: 222)\n}\n"
+            "enum Decoy {\n    static let width: CGFloat = 999\n    static let height: CGFloat = 888\n}\n"
+            "struct V: View { var body: some View {\n"
+            '    Text("x").frame(width: Multi.canvas.width, height: Multi.canvas.height)\n'
+            "} }\n",
+        )
+        result = self.check("View.swift", "--format", "json")
+        messages = " ".join(item["message"] for item in json.loads(result.stdout)["findings"])
+
+        self.assertNotIn("888", messages)
+        self.assertNotIn("999", messages)
+
+    def test_the_constants_command_shows_what_resolved(self) -> None:
+        self.write(
+            "View.swift",
+            "enum S {\n    static let w: CGFloat = 393\n    static let opaque = someCall()\n}\n",
+        )
+        result = run_cli("constants", "--project-root", str(self.root), "View.swift")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("S.w", result.stdout)
+        self.assertIn("393", result.stdout)
+        self.assertIn("—", result.stdout)
 
     def test_artwork_narrower_than_the_screen_is_not_a_canvas(self) -> None:
         rules = self.rules_for(
@@ -791,7 +879,7 @@ class TestWaiversAndPlumbing(GuardTestCase):
         self.assertIn("--format json", result.stderr)
 
     def test_the_markers_are_documented_in_help(self) -> None:
-        result = run("check", "--help")
+        result = run_cli("check", "--help")
 
         self.assertIn("UI_GUARD_CLEAN", result.stdout)
         self.assertIn("ui-guard: composition", result.stdout)
