@@ -8,6 +8,21 @@ versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `scripts/ui_guard.py` — the LAY and COL detections as a real command instead of prose: reports
+  `path:line: RULE-ID: message` over the feature's changed files, so a gate costs findings rather
+  than a read of the diff. Covers LAY-01…LAY-04, LAY-08…LAY-10, COL-01, COL-02, COL-04 and COL-05
+  (every literal form enumerated), takes `--changed-since`, `--reference-canvas`, `--asset-catalog`,
+  `--palette-symbol` and `--semantic-layer`, waives a line via `// ui-guard: allow LAY-04 — reason`,
+  and prints with every run a coverage note naming the rules it did **not** check — a clean run is
+  only as wide as that note. New `layout-color-guard` role: the project's own guard when it has one,
+  the shipped script otherwise.
+- `references/pitfalls.md` — the full failure catalog, grouped by stage and area so a dirty gate can
+  read its own group. `SKILL.md` keeps the twelve costliest.
+- `references/stages/stage-1.md` … `stage-8.md` — role binding, fallbacks and full gate per stage,
+  read by the stage ritual when that stage starts.
+- A context budget in `SKILL.md`: what is read at preflight, what is read at each stage, and the
+  rule that an exception is taken deliberately and recorded.
+
 - `references/colors-contract.md` — the Colors area gets its own contract: palette mechanism and
   naming scheme, semantic layer, system slots, appearance variants and the project's colour guard,
   plus baseline rules COL-01…COL-10 and a failure catalog (palette named after one usage site, a
@@ -39,6 +54,16 @@ versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Preflight no longer reads the Layout, Colors and Strings contracts. The audit resolves its six
+  rows from the baseline digests in `project-ui-conventions.md`; each contract is read in full at the
+  stage that enforces it (Strings at 1, Layout and Colors at 3), with an escape hatch for a row the
+  digest cannot resolve. Preflight load drops from ~27k to ~16.8k tokens.
+- `SKILL.md` shrinks from 35131 to ~25k chars: the eight stage bodies and the 41-bullet mistake list
+  move to references. No rule changed, only where it is stored and when it is read.
+- Pipeline manifest template `pipeline_schema_version: 11`: a `layout-color-guard` ledger row, and
+  the UI policy check table records the guard's exact invocation, its clean/dirty marker and which
+  rows it cannot fill.
+- `check.sh` runs every `scripts/tests/test_*.py` instead of the single validator suite.
 - Stages are bound by **role**, not by skill name. Outside the skills shipped here, every name in
   `SKILL.md` and the adapters is an example verified against the live catalog; a role can bind a
   renamed, namespaced, plugin-prefixed or newly published tool, and never a name that did not appear

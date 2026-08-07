@@ -60,6 +60,7 @@ Each role is a slot. `pinned` roles are satisfied by this repository and are nev
 | `asset-import` | exact Figma node bytes → project asset catalog, vector preserved, raster variants complete | pinned: `import-figma-assets` | 2 | blocker (repo broken) |
 | `strings-inspection` | read-only localization inventory / lookup / diff / validate | pinned: `scripts/localization_context.py` | preflight, 3, 8 | blocker |
 | `ui-plan-validation` | UI Plan schema + phase gates | pinned: `scripts/ui_plan.py` | 1, 3, 7 | blocker |
+| `layout-color-guard` | mechanical LAY/COL detection over the feature's changed files | the project's own guard when documentation names one, else pinned: `scripts/ui_guard.py` | 3, 8 | blocker (repo broken) |
 | `design-source-read` | authenticated scoped reads of the pinned Figma nodes | discovered MCP toolset | 1, 2, 3, 5 | blocker |
 | `design-to-code-workflow` | the design vendor's own required workflow for translating design context into code; the name that must be declared when the vendor's read tools log it | discovered, `vendor-official` preferred | 1, 3 | never fake the declaration: use the discovered generic implementation skill, else the UI Plan + project contract path, and record `degraded` |
 | `platform-design-translator` | translating design context into the project's UI framework idiom | discovered | 3 | generic implementation skill + the project's UI skills |

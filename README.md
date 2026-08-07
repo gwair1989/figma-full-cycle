@@ -135,8 +135,9 @@ skills/
 │   ├── SKILL.md                     # the orchestrator
 │   ├── adapters/                    # claude-code.md, codex.md — capability → tool names
 │   ├── references/                  # capability discovery, UI plan contract, Figma acquisition,
-│   │                                #   strings, layout, conventions
-│   ├── scripts/                     # ui_plan.py, localization_context.py (+ tests)
+│   │   │                            #   strings, layout, colors, conventions, pitfalls
+│   │   └── stages/                  # stage-1.md … stage-8.md, read at that stage
+│   ├── scripts/                     # ui_plan.py, localization_context.py, ui_guard.py (+ tests)
 │   ├── templates/                   # PIPELINE, PIPELINE.local, UI_PLAN
 │   └── agents/openai.yaml           # OpenAI-style agent manifest
 ├── figma-feature-spec/              # stage 1 as a standalone skill
@@ -147,10 +148,9 @@ skills/
     └── scripts/                     # imageset generator, PNG canvas normalizer
 ```
 
-### The two scripts
+### The three scripts
 
-Both are read-only, stdlib-only CLIs — the skill calls them so the model never has to swallow raw
-data:
+All read-only, stdlib-only CLIs — the skill calls them so the model never has to swallow raw data:
 
 ```bash
 python3 skills/figma-full-cycle/scripts/ui_plan.py validate \
@@ -169,6 +169,17 @@ python3 skills/figma-full-cycle/scripts/localization_context.py inventory --root
 `localization_context.py` inspects `.xcstrings` / `.strings` / `.stringsdict` with bounded output:
 `inventory`, targeted `lookup`, key-level `diff`, `validate`. It never writes catalogs and never
 prints them whole.
+
+```bash
+python3 skills/figma-full-cycle/scripts/ui_guard.py check \
+  --project-root . --changed-since <BASE_SHA> \
+  --reference-canvas 393x852 --asset-catalog App/Assets.xcassets
+```
+
+`ui_guard.py` is the stage 3 and stage 8 gate for the Layout and Colors contracts. It reports
+`path:line: RULE-ID: message` and nothing else, so reviewing a feature costs findings instead of a
+read of the diff. It is deliberately partial and prints with every run the rules it did **not**
+check — a clean run is only as wide as that note.
 
 ## Safety model
 

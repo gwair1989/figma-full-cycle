@@ -89,8 +89,9 @@ A new palette entry or semantic token is added only through the project's existi
 ### COL-10 — the gate is a real detection run
 
 - The project has a color guard (script, lint rule, test) → it is the gate, run with its exact documented invocation, evidence recorded.
-- No project guard → the COL-01…COL-05 detections over the feature's changed files are the gate.
+- No project guard → [`../scripts/ui_guard.py`](../scripts/ui_guard.py) is the shipped detection for COL-01, COL-02, COL-04 and COL-05 over the feature's changed files. COL-01 needs `--palette-symbol` and `--semantic-layer` from the resolved contract; COL-02 and COL-04 need `--asset-catalog`. Without those flags those rules do not run — the coverage note says so, and an unflagged run is not a clean palette.
 - Either way the run happens at stage 3 and again at stage 8, and "clean" means a recorded command with its output, not an assertion.
+- COL-03 and COL-06…COL-09 are not machine-checkable and are never covered by any guard's clean run — they are reviewer work at the same two gates. Before trusting a **project** guard, check its pattern against the full COL-05 form list; a form it cannot match goes into the manifest as a known gap (FAIL-02).
 
 ## 3. How this enters the stages
 

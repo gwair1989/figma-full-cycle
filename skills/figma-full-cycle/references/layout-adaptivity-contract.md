@@ -138,7 +138,9 @@ Compensation is a symptom. Fix the cause first — where the geometry comes from
 | 3 (implementation) | LAY-01…LAY-10 are part of the gate. A violation blocks the stage instead of becoming a stage 5 remark |
 | 5 (comparison) | Compare on at least one **non-reference** size: at the reference size a fixed canvas matches pixel-for-pixel and hides the breakage. A divergence inside the −2…+4pt LAY-07 window is not a defect |
 | 6 (adaptivity) | Matrix per LAY-11; evidence for every required device |
-| 8 (review) | Grep detections for LAY-01…LAY-04, LAY-08, LAY-09 over the changed files |
+| 8 (review) | Re-run the detections for LAY-01…LAY-04, LAY-08, LAY-09 over the changed files |
+
+LAY-01…LAY-04 and LAY-08…LAY-10 are detected by [`../scripts/ui_guard.py`](../scripts/ui_guard.py); pass `--reference-canvas` so LAY-01 keys on the project's actual artboard instead of a size threshold. LAY-05, LAY-06, LAY-07 and LAY-11 need intent, the project's system values or a screenshot — the script lists them as reviewer work and they stay part of the same gate. Waive a detected line in code with `// ui-guard: allow LAY-04 — <reason>`; the waiver is reported, not hidden, and is reviewed again at stage 8.
 
 ## 4. Failure catalog
 

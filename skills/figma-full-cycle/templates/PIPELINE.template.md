@@ -1,7 +1,7 @@
 # <FEATURE> — Pipeline manifest
 
 > The full cycle's source of truth. Only the main thread of the `figma-full-cycle` skill writes here.
-> pipeline_schema_version: 10
+> pipeline_schema_version: 11
 > run_id: <RUN_ID> <!-- date+slug; new on a fresh start, preserved across resume -->
 > Figma: <FIGMA_URL>
 > Figma pin: fileKey=<KEY> node=<NODE> version=<VERSION_OR_HASH> checked_at=<TS>
@@ -24,6 +24,7 @@
 | `asset-import` | `import-figma-assets` | `skill / repo-internal` | pinned | `ready` | 2 |
 | `strings-inspection` | `scripts/localization_context.py` | `script / repo-internal` | pinned | `ready` | preflight, 3, 8 |
 | `ui-plan-validation` | `scripts/ui_plan.py` | `script / repo-internal` | pinned | `ready` | 1, 3, 7 |
+| `layout-color-guard` | `<project guard / scripts/ui_guard.py>` | `script / <project / repo-internal>` | | `todo` | 3, 8 |
 | `design-source-read` | | `mcp-tool / vendor-official` | | `todo` | 1, 2, 3, 5 |
 | `design-to-code-workflow` | | `<skill / mcp-resource> / <vendor-official / third-party>` | | `todo` | 1, 3 |
 | `platform-design-translator` | | | | `todo` | 3 |
@@ -181,7 +182,12 @@ The commit subject in the table is the **actual** one from git; one stage = one 
 
 ## UI policy checks (stages 3 and 8)
 
-> One row per detection from `references/layout-adaptivity-contract.md` and `references/colors-contract.md`, run over the feature's changed files. A hit is a stage 3 blocker, not a stage 5 remark. `waived` requires a reason and the user's decision. Where the project ships its own guard, record its exact invocation in the detection column and run that instead of the grep.
+> One row per detection from `references/layout-adaptivity-contract.md` and `references/colors-contract.md`, run over the feature's changed files. A hit is a stage 3 blocker, not a stage 5 remark. `waived` requires a reason and the user's decision. Where the project ships its own guard, record its exact invocation in the detection column and run that instead.
+>
+> Run: `<exact command>` — the project's guard, or `python3 <skill-root>/scripts/ui_guard.py check --project-root . --changed-since <BASE_SHA> --reference-canvas <W>x<H> --asset-catalog <path>`
+> Result: `<UI_GUARD_CLEAN / UI_GUARD_DIRTY>` at `<TS>`, `<n>` findings, `<n>` waived, `<n>` files scanned
+>
+> The shipped guard fills LAY-01…LAY-04, LAY-08, LAY-09, LAY-10, COL-01, COL-02, COL-04 and COL-05 — and only with the flags those rules need (`--reference-canvas`, `--asset-catalog`, `--palette-symbol`, `--semantic-layer`). LAY-07 and COL-03 are reviewer rows in every run; leaving them `todo` leaves the gate open.
 
 | Rule | Detection | Result (hits / clean) | Status |
 |------|-----------|-----------------------|--------|

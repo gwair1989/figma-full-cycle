@@ -32,4 +32,10 @@ Per area:
 - Build succeeds.
 - Every screen and state is `done`.
 - No resolved UI convention bypassed.
-- LAY-01…LAY-10 and COL-01…COL-05 detections run over the feature's changed files — or the project's own color guard with its documented invocation — and come back clean or waived in the manifest.
+- LAY-01…LAY-10 and COL-01…COL-05 detections run over the feature's changed files — or the project's own color guard with its documented invocation — and come back clean or waived in the manifest:
+
+  ```bash
+  python3 <skill-root>/scripts/ui_guard.py check --project-root . --changed-since <BASE_SHA> --reference-canvas <W>x<H> --asset-catalog <path/to/Assets.xcassets>
+  ```
+
+  The mechanical half only. Record the command, its `UI_GUARD_CLEAN` / `UI_GUARD_DIRTY` marker and the coverage note as gate evidence, and check the rules the run lists as `reviewer` by hand — a clean run is exactly as wide as that note.

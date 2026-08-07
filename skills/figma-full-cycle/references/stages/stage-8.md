@@ -8,7 +8,13 @@
 
 Then:
 
-- Re-run the LAY-01…LAY-04, LAY-08, LAY-09 and COL-01…COL-05 detections — or the project's color guard — over the changed files.
+- Re-run the LAY-01…LAY-04, LAY-08, LAY-09 and COL-01…COL-05 detections — or the project's color guard — over the changed files, with the same invocation stage 3 recorded:
+
+  ```bash
+  python3 <skill-root>/scripts/ui_guard.py check --project-root . --changed-since <BASE_SHA> --reference-canvas <W>x<H> --asset-catalog <path/to/Assets.xcassets>
+  ```
+
+  A waiver added since stage 3 is reviewed here, not accepted because it is already in the file.
 - If UI or copy changed → targeted stages 5/6 and a repeated Strings key-level gate for the changed `copy_id` only.
 
 ## Fallback

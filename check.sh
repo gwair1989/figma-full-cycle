@@ -11,7 +11,7 @@
 set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TESTS="$REPO_ROOT/skills/figma-full-cycle/scripts/tests/test_ui_plan.py"
+TESTS_DIR="$REPO_ROOT/skills/figma-full-cycle/scripts/tests"
 QUICK=0
 FAILED=()
 
@@ -36,9 +36,11 @@ interpreters() {
 }
 
 while IFS=$'\t' read -r interpreter version; do
-  step "Validator tests — Python $version ($interpreter)"
-  "$interpreter" "$TESTS"
-  record $? "tests (python $version)"
+  for test in "$TESTS_DIR"/test_*.py; do
+    step "$(basename "$test") — Python $version ($interpreter)"
+    "$interpreter" "$test"
+    record $? "$(basename "$test") (python $version)"
+  done
 done < <(interpreters)
 
 step "Skill structure"
