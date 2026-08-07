@@ -36,7 +36,7 @@ content
 
 That is an aspect-fit of the artboard: a different aspect ratio produces letterboxing, not adaptation. The screen container stretches instead: `.frame(maxWidth: .infinity, maxHeight: .infinity)`.
 
-Detection: `.scaleEffect(` in a file that also pins **both** frame dimensions. The size does not have to be a literal — a named constant is the same canvas, and `.frame(width: OnboardingLayout.width, height: OnboardingLayout.height)` is the shape this rule was written from. `scripts/ui_guard.py` resolves constants through the files it is given and falls back to flagging any fully pinned frame it cannot resolve.
+Detection: `.scaleEffect(` in a file that also pins **both** frame dimensions, where the pinned block is not provably smaller than the screen. The size does not have to be a literal — a named constant is the same canvas, and `.frame(width: OnboardingLayout.width, height: OnboardingLayout.height)`, resolving through `CGSize(width: 393, height: 852)` in another file, is the exact shape this rule was written from. `scripts/ui_guard.py` resolves constants across every file in the run, through `CGSize` members and through one constant naming another, and treats what it cannot resolve as the screen.
 
 ### LAY-02 — no hard frame on `Color` and shapes
 
@@ -71,14 +71,16 @@ ZStack {
 .frame(width: 280, height: 180)
 ```
 
-The marker covers the block and the modifiers chained onto it. One comment for the group, not a waiver per element — a rule that costs a waiver per element teaches people to waive without reading.
+The marker covers the block, the modifiers chained onto it — including the frame that declares the block's size — and suspends the fixed-geometry rules **LAY-02, LAY-03 and LAY-04** inside it. Fixed geometry is what artwork is made of; flagging an illustration for declaring its own dimensions is the same mistake as flagging its internal offsets. One comment for the group, not a waiver per element: a rule that costs a waiver per element teaches people to waive without reading.
 
 Two conditions, both checked:
 
 - **The group is anchored natively.** Its own placement obeys LAY-04 and LAY-05; only its interior is exempt.
-- **The group is not the screen.** A composition whose frame is screen-sized is refused and its contents are reported as usual. Otherwise the marker would license exactly the fixed-canvas pattern LAY-01 forbids, one comment at a time.
+- **The group is not the screen.** A composition is refused unless its frame is *provably smaller* than the screen — smaller than 90% of the reference canvas in at least one dimension, or under 300pt in both when no canvas was given. A size the guard cannot resolve counts as the screen, so an unreadable value is never an escape. Otherwise the marker would license exactly the fixed-canvas pattern LAY-01 forbids, one comment at a time.
 
-Every exemption is listed in the guard's output with its name and lines: an exemption nobody sees is a rule nobody enforces.
+"Provably" is doing real work in that sentence. The first implementation compared against a flat 300pt threshold, which refused a 381×373 illustration on a 393pt canvas while accepting a genuine 393×852 canvas whose size was written as `CGSize(width:height:)` — wrong in both directions at once.
+
+Every composition is listed in the guard's output, including one that exempted nothing: an exemption nobody sees is a rule nobody enforces, and a marker that silently matches nothing rots in the source.
 
 Detection: any `.position(`; `.offset(` outside an animation context, minus declared compositions.
 

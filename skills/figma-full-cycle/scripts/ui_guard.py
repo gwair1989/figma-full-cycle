@@ -13,13 +13,14 @@ Deliberately partial, and it says so: rules that need project knowledge or a
 screenshot cannot be regex-checked, and a clean run is only as wide as the
 coverage note printed with it. Swift is parsed by pattern, not by grammar.
 
-Numeric values are resolved through named constants declared in the files it is
-given, because a value with a name is still the value — a first version matched
-literals only and so stayed silent on `.frame(width: OnboardingLayout.width,
-height: OnboardingLayout.height)`, the exact fixed-canvas shape LAY-01 exists to
-catch, while reporting dozens of lesser findings and looking healthy. Resolution
-is file-scoped and best-effort; a frame that pins both dimensions is treated as
-a canvas even when the size cannot be resolved at all.
+Numeric values are resolved through named constants, because a value with a
+name is still the value — a first version matched literals only and so stayed
+silent on `.frame(width: OnboardingLayout.width, height: OnboardingLayout.height)`,
+the exact fixed-canvas shape LAY-01 exists to catch, while reporting dozens of
+lesser findings and looking healthy. Resolution spans every file in the run and
+reads `CGSize(width:height:)` members, since layout constants normally live in
+their own file. It stays best-effort, so it fails closed: a frame pinning both
+dimensions counts as the screen unless it is *provably* smaller.
 
 Waive a finding in code with a comment on the line or the line above:
 
@@ -40,6 +41,10 @@ from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 MAX_FILE_BYTES = 2_000_000
 SWIFT_SUFFIXES = (".swift",)
+# A pinned dimension this large is screen-level when no reference canvas is known.
+SCREEN_LEVEL_PT = 300
+# Below this share of the canvas in either dimension, a pinned block is artwork.
+ARTWORK_RATIO = 0.9
 
 # Rules this script actually checks. Everything else in the contracts is left
 # to the reviewer, and named in the coverage note so a clean run is not read
@@ -75,8 +80,10 @@ WAIVER_RE = re.compile(r"//\s*ui-guard:\s*allow\s+([A-Z]{3}-\d{2})")
 # other rather than against the screen, so LAY-04 does not apply. One comment
 # covers the whole block — a waiver per element trains the reflex to waive.
 COMPOSITION_RE = re.compile(r"//\s*ui-guard:\s*composition\b\s*([^\n]*)")
+# Not anchored: `enum K { static let w: CGFloat = 393 }` on one line is ordinary
+# Swift, and anchoring the match at the line start silently skipped it.
 CONSTANT_RE = re.compile(
-    r"^(?:public\s+|private\s+|internal\s+|fileprivate\s+|open\s+)*"
+    r"(?:^|[{;]\s*)(?:public\s+|private\s+|internal\s+|fileprivate\s+|open\s+)*"
     r"(?:static\s+)?(?:let|var)\s+(\w+)\s*(?::\s*[^=]+?)?\s*=\s*(.+)$"
 )
 TYPE_RE = re.compile(
@@ -85,6 +92,12 @@ TYPE_RE = re.compile(
 )
 WRAPPER_CALL_RE = re.compile(r"^(?:CGFloat|Double|Float|Int)\s*\(\s*([^()]+?)\s*\)$")
 IDENTIFIER_PATH_RE = re.compile(r"^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*$")
+MEMBER_RE = re.compile(r"^(.*)\.(width|height)$")
+# `CGSize(width: 393, height: 852)` is how a reference canvas is usually
+# written; reading `.width` off it has to work or the rule reads nothing.
+SIZE_LITERAL_RE = re.compile(
+    r"^(?:CGSize|CGVector|\.init)\s*\(\s*(?:width|dx)\s*:\s*([^,]+?)\s*,\s*(?:height|dy)\s*:\s*([^)]+?)\s*\)$"
+)
 # `.scaleEffect(configuration.isPressed ? 0.97 : 1)` is the animation case the
 # rule explicitly permits, not an adaptation mechanism.
 CONDITIONAL_RE = re.compile(r"\?.*:|==|!=|>=|<=|[<>]")
@@ -131,9 +144,15 @@ Source annotations:
       counted in the summary, never hidden.
   // ui-guard: composition <name> — <reason>
       Opens a block of fixed-size artwork whose elements are placed against each other, so
-      LAY-04 does not apply inside it. Covers the braces it opens and the modifiers chained
-      onto them, so one comment replaces a waiver per element. Refused when the block pins a
-      screen-sized frame — a canvas is not artwork. Exemptions are listed in the output.
+      the fixed-geometry rules LAY-02, LAY-03 and LAY-04 do not apply inside it. Covers the
+      braces it opens and the modifiers chained onto them — including the frame declaring the
+      block's size — so one comment replaces a waiver per element. Refused when that frame is
+      not provably smaller than the screen: a canvas is not artwork. Every composition is
+      listed in the output, including one that exempted nothing.
+
+Constants are resolved across every file in the run, through CGSize members and through one
+constant naming another. Resolution fails closed: a frame pinning both dimensions counts as
+screen-sized unless it provably is not, so an unreadable value never becomes an escape.
 """
 
 
@@ -218,6 +237,7 @@ class SourceFile:
         self.constants = collect_constants(self.code_lines)
         self.compositions = composition_regions(self.raw_lines, self.code_lines)
         self.composition_hits: List[Tuple[str, int]] = []
+        self.refused_compositions: List[str] = []
 
     def has_text_views(self) -> bool:
         return any(re.search(r"\bText\s*\(", line) for line in self.code_lines)
@@ -230,6 +250,17 @@ def strip_noncode(line: str) -> str:
     if marker != -1:
         blanked = blanked[:marker]
     return blanked
+
+
+def trim_declaration(value: str) -> str:
+    """Drop what belongs to the enclosing block, not to the value.
+
+    `enum K { static let w: CGFloat = 393 }` hands back `393 }`.
+    """
+    text = value.strip().rstrip(",;")
+    while text.endswith("}") and text.count("}") > text.count("{"):
+        text = text[:-1].strip().rstrip(",;")
+    return text
 
 
 def collect_constants(code_lines: Sequence[str]) -> Dict[str, str]:
@@ -251,10 +282,10 @@ def collect_constants(code_lines: Sequence[str]) -> Dict[str, str]:
         while scopes and depth <= scopes[-1][0]:
             scopes.pop()
 
-        declaration = CONSTANT_RE.match(stripped)
+        declaration = CONSTANT_RE.search(stripped)
         if declaration:
             name = declaration.group(1)
-            value = declaration.group(2).strip().rstrip(",;")
+            value = trim_declaration(declaration.group(2))
             qualified = "{}.{}".format(scopes[-1][1], name) if scopes else name
             constants[qualified] = value
             if name in constants and constants[name] != value:
@@ -273,10 +304,22 @@ def collect_constants(code_lines: Sequence[str]) -> Dict[str, str]:
     return constants
 
 
+def lookup_constant(path: str, constants: Dict[str, str]) -> Optional[str]:
+    """The declared expression behind a name, matching the longest suffix."""
+    text = path.strip()
+    parts = text.split(".")
+    for start in range(len(parts)):
+        candidate = ".".join(parts[start:])
+        value = constants.get(candidate)
+        if value is not None and value.strip() != text:
+            return value
+    return None
+
+
 def resolve_number(expression: str, constants: Dict[str, str], depth: int = 0) -> Optional[float]:
     """A literal, or a named constant that resolves to one."""
     text = expression.strip()
-    if not text or depth > 3:
+    if not text or depth > 6:
         return None
 
     try:
@@ -288,17 +331,28 @@ def resolve_number(expression: str, constants: Dict[str, str], depth: int = 0) -
     if wrapper:
         return resolve_number(wrapper.group(1), constants, depth + 1)
 
+    # `GeometryData.referenceCanvasSize.width` — resolve the size, then the member.
+    member = MEMBER_RE.match(text)
+    if member:
+        base, which = member.group(1), member.group(2)
+        base_value = base if SIZE_LITERAL_RE.match(base) else lookup_constant(base, constants)
+        seen = 0
+        while base_value is not None and seen < 6:
+            size = SIZE_LITERAL_RE.match(base_value.strip())
+            if size:
+                return resolve_number(size.group(1 if which == "width" else 2), constants, depth + 1)
+            if not IDENTIFIER_PATH_RE.match(base_value.strip()):
+                break
+            base_value = lookup_constant(base_value, constants)
+            seen += 1
+
     if not IDENTIFIER_PATH_RE.match(text):
         return None
 
-    parts = text.split(".")
-    for start in range(len(parts)):
-        candidate = ".".join(parts[start:])
-        value = constants.get(candidate)
-        if value is None or value.strip() == text:
-            continue
-        return resolve_number(value, constants, depth + 1)
-    return None
+    value = lookup_constant(text, constants)
+    if value is None:
+        return None
+    return resolve_number(value, constants, depth + 1)
 
 
 def build_chains(code_lines: Sequence[str]) -> List[Chain]:
@@ -466,13 +520,46 @@ def fixed_extent(value: Optional[str]) -> bool:
     return bool(text) and ".infinity" not in text and text != "nil"
 
 
-def check_layout(source: SourceFile, canvas: Optional[Tuple[float, float]]) -> List[Finding]:
+def provably_smaller_than_screen(
+    width: Optional[float], height: Optional[float], canvas: Optional[Tuple[float, float]]
+) -> bool:
+    """Is this pinned frame demonstrably a piece of content rather than the screen?
+
+    Artwork is meaningfully smaller than the screen in at least one dimension —
+    a 381×373 illustration on a 393×852 canvas is 44% of its height. Requiring
+    *both* dimensions to be small would reject it, and a bare `>= 300` threshold
+    rejects anything near the full width of a phone.
+
+    Unknown sizes are never "provably" anything: an unresolved frame is treated
+    as the screen, so a value the resolver cannot read fails closed.
+    """
+    if width is None or height is None:
+        return False
+    if canvas:
+        canvas_width, canvas_height = canvas
+        return (
+            width <= canvas_width * ARTWORK_RATIO or height <= canvas_height * ARTWORK_RATIO
+        )
+    return width < SCREEN_LEVEL_PT and height < SCREEN_LEVEL_PT
+
+
+def check_layout(
+    source: SourceFile,
+    canvas: Optional[Tuple[float, float]],
+    shared_constants: Optional[Dict[str, str]] = None,
+) -> List[Finding]:
     findings: List[Finding] = []
-    canvas_sizes = set(canvas) if canvas else set()
-    constants = source.constants
+    # Layout constants routinely live in their own file — that is the convention
+    # this guard is meant to reward, not a case it may ignore. The file's own
+    # declarations win over another file's on a name clash.
+    constants = dict(shared_constants or {})
+    constants.update(source.constants)
 
     canvas_frames: List[Tuple[int, str]] = []
-    placement: List[Finding] = []  # LAY-04, decided after the canvas frames are known
+    # LAY-02/03/04 are the fixed-geometry rules, and fixed geometry is exactly
+    # what artwork is made of. They are decided after the canvas frames are
+    # known, so a composition can be refused before it exempts anything.
+    geometry: List[Finding] = []
 
     for chain in source.chains:
         text = chain.text
@@ -484,12 +571,11 @@ def check_layout(source: SourceFile, canvas: Optional[Tuple[float, float]]) -> L
             width_number = resolve_number(width, constants) if width else None
             height_number = resolve_number(height, constants) if height else None
 
-            # Both dimensions pinned is the canvas shape, whether the sizes are
-            # literals, named constants, or symbols this script cannot resolve.
+            # Both dimensions pinned is the canvas shape unless the block is
+            # provably smaller than the screen. Unresolved sizes fail closed:
+            # a value the resolver cannot read must not become an escape.
             if fixed_extent(width) and fixed_extent(height):
-                resolved = [n for n in (width_number, height_number) if n is not None]
-                matches_canvas = any(n in canvas_sizes for n in resolved) if canvas_sizes else False
-                if matches_canvas or (not resolved and not canvas_sizes) or any(n >= 300 for n in resolved):
+                if not provably_smaller_than_screen(width_number, height_number, canvas):
                     canvas_frames.append(
                         (
                             line,
@@ -505,7 +591,7 @@ def check_layout(source: SourceFile, canvas: Optional[Tuple[float, float]]) -> L
                     continue
 
                 if number is None and ARITHMETIC_RE.search(value):
-                    findings.append(
+                    geometry.append(
                         Finding(
                             source.display,
                             line,
@@ -515,8 +601,8 @@ def check_layout(source: SourceFile, canvas: Optional[Tuple[float, float]]) -> L
                             ),
                         )
                     )
-                elif number is not None and number >= 300:
-                    findings.append(
+                elif number is not None and number >= SCREEN_LEVEL_PT:
+                    geometry.append(
                         Finding(
                             source.display,
                             line,
@@ -528,7 +614,7 @@ def check_layout(source: SourceFile, canvas: Optional[Tuple[float, float]]) -> L
                     )
 
                 if number is not None and GREEDY_SHAPE_RE.match(text.strip()):
-                    findings.append(
+                    geometry.append(
                         Finding(
                             source.display,
                             line,
@@ -541,12 +627,12 @@ def check_layout(source: SourceFile, canvas: Optional[Tuple[float, float]]) -> L
 
         position = re.search(r"\.position\s*\(", text)
         if position:
-            placement.append(
+            geometry.append(
                 Finding(
                     source.display,
                     chain.line_at(position.start()),
                     "LAY-04",
-                    ".position(...) is not a layout mechanism — position with alignment, space with padding",
+                    ".position(...) is not a layout mechanism — position with alignment, space with padding, or declare the group a composition",
                 )
             )
 
@@ -560,12 +646,12 @@ def check_layout(source: SourceFile, canvas: Optional[Tuple[float, float]]) -> L
                 if value is not None and resolve_number(value, constants) is not None
             ]
             if static:
-                placement.append(
+                geometry.append(
                     Finding(
                         source.display,
                         chain.line_at(offset.start()),
                         "LAY-04",
-                        "static .offset({}) used as layout — allowed only for animation, with the reason recorded".format(
+                        "static .offset({}) used as layout — allowed only for animation, or inside a declared composition".format(
                             args.strip()
                         ),
                     )
@@ -616,10 +702,11 @@ def check_layout(source: SourceFile, canvas: Optional[Tuple[float, float]]) -> L
                     "the exemption does not apply".format(composition.name, canvas_inside[0]),
                 )
             )
+            source.refused_compositions.append(composition.name)
             continue
         honoured.append(composition)
 
-    for finding in placement:
+    for finding in geometry:
         covering = next((c for c in honoured if c.covers(finding.line)), None)
         if covering is None:
             findings.append(finding)
@@ -934,10 +1021,24 @@ def run_check(args: argparse.Namespace) -> int:
         display = display_path(path, project_root)
         sources[display] = SourceFile(path, display)
 
+    # One constant table for the whole run: a name declared in `*Style.swift`
+    # and used in a view is the normal shape, not an exotic one. A bare name
+    # holding two different values across files resolves to neither.
+    shared_constants: Dict[str, str] = {}
+    conflicting: set = set()
+    for source in sources.values():
+        for name, value in source.constants.items():
+            if name in shared_constants and shared_constants[name] != value:
+                conflicting.add(name)
+            else:
+                shared_constants[name] = value
+    for name in conflicting:
+        shared_constants.pop(name, None)
+
     findings: List[Finding] = []
     for source in sources.values():
         if "LAY" in rules:
-            findings.extend(check_layout(source, canvas))
+            findings.extend(check_layout(source, canvas, shared_constants))
         if "COL" in rules:
             findings.extend(check_color_literals(source))
             findings.extend(
@@ -991,11 +1092,26 @@ def run_check(args: argparse.Namespace) -> int:
     # Exemptions are announced, never silent: a composition marker that quietly
     # swallowed a screen's worth of offsets would be worse than no rule.
     by_composition: Dict[Tuple[str, str], List[int]] = {}
+    # Every declared composition is listed, including the ones that exempted
+    # nothing: a marker nobody sees rot quietly in the source, and the reader
+    # cannot tell "no longer needed" from "silently not matching".
+    for source in sources.values():
+        for composition in source.compositions:
+            if composition.name in source.refused_compositions:
+                continue  # already reported as a refusal, with its reason
+            by_composition.setdefault((source.display, composition.name), [])
     for path, name, line in exempted:
         by_composition.setdefault((path, name), []).append(line)
+
     for (path, name), lines in sorted(by_composition.items()):
+        if not lines:
+            print(
+                "{}: composition '{}' exempts 0 — nothing inside it is a fixed-geometry finding; "
+                "remove the marker or check that it opens the block you meant".format(path, name)
+            )
+            continue
         print(
-            "{}: composition '{}' exempts {} placement call(s) on line(s) {}".format(
+            "{}: composition '{}' exempts {} fixed-geometry finding(s) on line(s) {}".format(
                 path, name, len(lines), ", ".join(str(line) for line in sorted(lines))
             )
         )
@@ -1035,7 +1151,12 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument("--rules", default="LAY,COL", help="Rule families to run (default: LAY,COL)")
     check.add_argument(
         "--reference-canvas",
-        help="Design reference canvas WIDTHxHEIGHT; sharpens LAY-01 (e.g. 393x852)",
+        help=(
+            "Design reference canvas WIDTHxHEIGHT (e.g. 393x852). Without it a pinned frame counts "
+            "as screen-level at {}pt. With it, a pinned block counts as artwork when either "
+            "dimension falls below {} of the canvas — which is what lets a composition be "
+            "honoured.".format(SCREEN_LEVEL_PT, ARTWORK_RATIO)
+        ),
     )
     check.add_argument(
         "--asset-catalog",
@@ -1056,7 +1177,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Path glob owning the semantic layer, exempt from COL-01 (repeatable)",
     )
     check.add_argument("--format", choices=("text", "json"), default="text")
-    check.add_argument("--max-findings", type=int, default=50)
+    check.add_argument(
+        "--max-findings",
+        type=int,
+        default=50,
+        help="Findings to print before truncating (default %(default)s); --format json is never truncated",
+    )
     check.set_defaults(handler=run_check)
 
     return parser

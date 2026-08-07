@@ -96,6 +96,32 @@ versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Constant resolution reaches the shapes a real project uses. The first version read literals in a
+  single file, so it stayed silent on `OnboardingLayout.width = GeometryData.referenceCanvasSize.width`
+  — layout constants in their own file, behind a `CGSize` — which is the canonical FAIL-01 case and
+  the convention the contract tells projects to follow. Resolution now spans every file in the run,
+  reads `CGSize(width:height:)` members, and collects declarations written on one line inside an
+  `enum`.
+- `--reference-canvas`, documented as sharpening LAY-01, switched it off. The unresolved-size
+  fallback was gated on *no* canvas being supplied, so passing the flag disabled the very rule it
+  was meant to sharpen — and the test covering that fallback passed only because it omitted the
+  flag. A pinned frame is now judged canvas unless provably smaller than the screen, with or without
+  the flag.
+- The composition exemption was wrong in both directions: it refused a 381×373 illustration on a
+  393pt canvas while honouring a real 393×852 canvas whose size came from a `CGSize` constant —
+  legalising a fixed canvas one comment at a time. The check now compares against the reference
+  canvas (artwork is under 90% of it in at least one dimension) instead of a flat 300pt threshold,
+  and fails closed on a size it cannot read.
+- A composition also suspends LAY-02 and LAY-03 inside itself, including on the frame declaring its
+  own size. Fixed geometry is what artwork is made of; flagging an illustration for stating its
+  dimensions is the same mistake as flagging its internal offsets.
+- A composition marker that exempts nothing now says so instead of vanishing, so a stale marker
+  cannot rot in the source; a refused one is not also reported as empty.
+- A cross-aspect `PASS` from `screenshot_diff.py` carries `bottom band not gated — check content
+  clipping by eye`. A bare PASS read as "all good" exactly where clipping had deliberately not been
+  judged.
+- `--max-findings` has a help string, `--reference-canvas` describes what it actually changes, and
+  LAY-04's message points at the composition marker rather than only at waivers.
 - Both scripts document their exit codes, their `*_CLEAN` / `*_DIRTY` stdout markers and their source
   annotations in `--help` — on the subcommand, where they are actually read. The truncation notice
   now names `--max-findings` and `--format json` instead of leaving the reader to guess.

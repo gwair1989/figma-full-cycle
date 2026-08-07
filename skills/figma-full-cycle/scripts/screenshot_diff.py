@@ -514,6 +514,10 @@ def emit(reports: Sequence[Dict[str, object]], args: argparse.Namespace) -> int:
 
             if verdict["pass"]:
                 print("PASS  {}  {}".format(label, grid_note))
+                if not verdict.get("grid_comparable", True):
+                    # A bare PASS reads as "all good", and here it does not mean
+                    # that: clipping was measured and deliberately not judged.
+                    print("      bottom band not gated — check content clipping by eye")
                 continue
 
             reasons = []

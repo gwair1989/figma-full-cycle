@@ -273,6 +273,11 @@ class TestAspectAwareness(ScreenshotDiffTestCase):
         self.assertIn("not gated", result.stdout)
         self.assertIn("aspect", result.stdout)
 
+    def test_a_pass_across_aspects_says_clipping_was_not_judged(self) -> None:
+        result = self.compare(self.native_render(RENDER_SIZE, count=7))
+
+        self.assertIn("check content clipping by eye", result.stdout)
+
     def test_a_fixed_canvas_still_fails_across_aspects(self) -> None:
         width, height = RENDER_SIZE
         squeezed = native_rows(width, height, count=8, inset=44, top=70, gap=9, row_height=47)

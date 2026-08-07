@@ -294,6 +294,95 @@ class TestNamedConstants(GuardTestCase):
         self.assertNotIn("LAY-03", rules)
 
 
+class TestCanvasResolution(GuardTestCase):
+    """The shapes a real project writes a reference canvas in. Every one of these
+    was silent in the first fix, whose fixtures only used literals in one file —
+    including, fatally, only ever without --reference-canvas."""
+
+    VIEW = (
+        "struct OnboardingView: View {\n"
+        "    var body: some View {\n"
+        '        Text("Welcome")\n'
+        "            .frame(width: OnboardingLayout.width, height: OnboardingLayout.height)\n"
+        "            .scaleEffect(canvasScale)\n"
+        "    }\n"
+        "}\n"
+    )
+
+    CGSIZE_CONSTANTS = (
+        "enum GeometryData {\n"
+        "    static let referenceCanvasSize = CGSize(width: 393, height: 852)\n"
+        "}\n"
+        "enum OnboardingLayout {\n"
+        "    static let width = GeometryData.referenceCanvasSize.width\n"
+        "    static let height = GeometryData.referenceCanvasSize.height\n"
+        "}\n"
+    )
+
+    def test_a_cgsize_member_behind_a_chain_resolves(self) -> None:
+        rules = self.rules_for(
+            self.CGSIZE_CONSTANTS + self.VIEW, "--reference-canvas", "393x852"
+        )
+
+        self.assertIn("LAY-01", rules)
+        self.assertIn("LAY-03", rules)
+
+    def test_a_one_line_enum_declaration_is_collected(self) -> None:
+        rules = self.rules_for(
+            "enum K { static let w: CGFloat = 393 }\n"
+            "enum K2 { static let h: CGFloat = 852 }\n"
+            "struct V: View { var body: some View {\n"
+            '    Text("x")\n'
+            "        .frame(width: K.w, height: K2.h)\n"
+            "        .scaleEffect(scale)\n"
+            "} }\n",
+            "--reference-canvas",
+            "393x852",
+        )
+
+        self.assertIn("LAY-01", rules)
+        self.assertIn("LAY-03", rules)
+
+    def test_constants_resolve_across_the_files_in_the_run(self) -> None:
+        self.write("Style.swift", self.CGSIZE_CONSTANTS)
+        self.write("Screen.swift", self.VIEW)
+        result = self.check(
+            "Style.swift", "Screen.swift", "--reference-canvas", "393x852", "--format", "json"
+        )
+        payload = json.loads(result.stdout)
+        rules = {item["rule"] for item in payload["findings"]}
+
+        self.assertIn("LAY-01", rules)
+        self.assertIn("LAY-03", rules)
+
+    def test_the_reference_canvas_flag_does_not_disable_the_fallback(self) -> None:
+        # The flag documented as sharpening LAY-01 used to switch it off for any
+        # size the resolver could not read.
+        body = (
+            "struct V: View { var body: some View {\n"
+            '    Text("x")\n'
+            "        .frame(width: someWidth, height: someHeight)\n"
+            "        .scaleEffect(scale)\n"
+            "} }\n"
+        )
+
+        self.assertIn("LAY-01", self.rules_for(body))
+        self.assertIn("LAY-01", self.rules_for(body, "--reference-canvas", "393x852"))
+
+    def test_artwork_narrower_than_the_screen_is_not_a_canvas(self) -> None:
+        rules = self.rules_for(
+            "struct V: View { var body: some View {\n"
+            '    Image("art")\n'
+            "        .frame(width: 381, height: 373)\n"
+            "        .scaleEffect(0.9)\n"
+            "} }\n",
+            "--reference-canvas",
+            "393x852",
+        )
+
+        self.assertNotIn("LAY-01", rules)
+
+
 class TestFindingAnchoring(GuardTestCase):
     """A finding must land on the line carrying the modifier: anchoring at the
     chain start put waivers out of reach and moved when a comment was added."""
@@ -439,7 +528,7 @@ class TestCompositions(GuardTestCase):
         result = self.check("View.swift")
 
         self.assertIn("composition 'OnboardingAnimals'", result.stdout)
-        self.assertIn("3 placement call(s)", result.stdout)
+        self.assertIn("3 fixed-geometry finding(s)", result.stdout)
         self.assertIn("3 exempt by composition", result.stdout)
 
     def test_a_screen_sized_composition_is_refused(self) -> None:
@@ -462,6 +551,95 @@ class TestCompositions(GuardTestCase):
         self.assertIn("0 exempt by composition", result.stdout)
         self.assertIn("static .offset(x: 40, y: 100)", result.stderr)
         self.assertIn(".position(...)", result.stderr)
+
+    def test_a_canvas_behind_a_cgsize_constant_is_also_refused(self) -> None:
+        # The literal case was refused from the start; the same canvas written as
+        # a constant walked straight through, which made the marker a way to
+        # legalise a fixed canvas one comment at a time.
+        self.write(
+            "View.swift",
+            "enum IGeo {\n"
+            "    static let canvas = CGSize(width: 393, height: 852)\n"
+            "}\n"
+            "struct Fake: View {\n"
+            "    var body: some View {\n"
+            "        // ui-guard: composition FakeArtwork — totally artwork\n"
+            "        ZStack {\n"
+            '            Image("a").offset(x: 40, y: 100)\n'
+            '            Image("b").position(x: 200, y: 400)\n'
+            "        }\n"
+            "        .frame(width: IGeo.canvas.width, height: IGeo.canvas.height)\n"
+            "    }\n"
+            "}\n",
+        )
+        result = self.check("View.swift", "--reference-canvas", "393x852")
+
+        self.assertIn("a canvas is not artwork", result.stderr)
+        self.assertIn("0 exempt by composition", result.stdout)
+
+    def test_artwork_wider_than_the_old_threshold_is_still_honoured(self) -> None:
+        # 381pt on a 393pt canvas: under the bare `>= 300` rule this honest
+        # illustration was refused as screen-sized.
+        self.write(
+            "View.swift",
+            "struct BadgeScatter: View {\n"
+            "    var body: some View {\n"
+            "        // ui-guard: composition BadgeScatter — 381x373 cluster\n"
+            "        ZStack {\n"
+            '            Image("vial").offset(x: -141.5, y: -110.9)\n'
+            "        }\n"
+            "        .frame(width: 381, height: 373)\n"
+            "    }\n"
+            "}\n",
+        )
+        result = self.check("View.swift", "--reference-canvas", "393x852")
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("composition 'BadgeScatter'", result.stdout)
+
+    def test_the_block_size_frame_is_exempt_too(self) -> None:
+        rules = self.rules_for(
+            "struct A: View { var body: some View {\n"
+            "    // ui-guard: composition Art — 381x373 cluster\n"
+            "    ZStack {\n"
+            '        Image("v").offset(x: -141.5)\n'
+            "    }\n"
+            "    .frame(width: 381, height: 373)\n"
+            "} }\n",
+            "--reference-canvas",
+            "393x852",
+        )
+
+        self.assertNotIn("LAY-03", rules)
+
+    def test_a_marker_that_exempts_nothing_says_so(self) -> None:
+        self.write(
+            "View.swift",
+            "struct D: View { var body: some View {\n"
+            "    // ui-guard: composition Leftover — nothing here any more\n"
+            "    VStack {\n"
+            '        Text("hello")\n'
+            "    }\n"
+            "} }\n",
+        )
+        result = self.check("View.swift")
+
+        self.assertIn("composition 'Leftover' exempts 0", result.stdout)
+
+    def test_a_refused_marker_is_not_also_reported_as_empty(self) -> None:
+        self.write(
+            "View.swift",
+            "struct Fake: View { var body: some View {\n"
+            "    // ui-guard: composition Fake — nope\n"
+            "    ZStack {\n"
+            '        Image("a").offset(x: 40, y: 100)\n'
+            "    }\n"
+            "    .frame(width: 393, height: 852)\n"
+            "} }\n",
+        )
+        result = self.check("View.swift", "--reference-canvas", "393x852")
+
+        self.assertNotIn("exempts 0", result.stdout)
 
     def test_the_reason_is_not_taken_as_the_name(self) -> None:
         self.write("View.swift", self.ARTWORK)
