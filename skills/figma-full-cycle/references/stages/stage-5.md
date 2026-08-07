@@ -2,19 +2,13 @@
 
 **Read before starting** (skip what the session already holds): the LAY-07 snap window and §3 of [`../layout-adaptivity-contract.md`](../layout-adaptivity-contract.md); COL-06 of [`../colors-contract.md`](../colors-contract.md). Both are normally still in session from stage 3.
 
-## Role binding
+Re-check the Figma pin before anything else. Version changed → dependent visual gates go `stale` and the user is told.
 
-Re-check the Figma pin, then `visual-comparison` per screen (`#Preview` or a simulator screenshot; one explorer subagent per screen).
+## Two passes, in this order
 
-- The style reference is the **full screenshot of the parent frame**: an isolated node export bakes in screen backgrounds and is only good for slicing assets.
-- Verify Typography/Colors and other numbers from design context, not by pixel approximation.
-- Mark intentional deviations coming from the resolved contract explicitly.
-- Compare every screen on at least one **non-reference** size as well: at the reference size a fixed canvas matches pixel-for-pixel and hides the breakage.
-- An inset divergence inside the LAY-07 system-value snap window (−2…+4pt) is a match, not a defect.
+Comparing costs an image in context per pair, and every screen has at least two pairs (reference and non-reference size). So the stage filters first and looks second.
 
-## Mechanical pass first
-
-Before any screen goes to a subagent or into the model's own eyes, run the geometry check:
+**1. `screenshot-geometry` over every pair.** Pinned to [`../../scripts/screenshot_diff.py`](../../scripts/screenshot_diff.py):
 
 ```bash
 python3 <skill-root>/scripts/screenshot_diff.py compare \
@@ -24,14 +18,31 @@ python3 <skill-root>/scripts/screenshot_diff.py compare \
   --out docs/.cache/<FEATURE>/reports/diff-<screen>-<device>.json
 ```
 
-It normalizes the mock to the render's size, so a non-reference device is a normal comparison rather than an error, and it answers letterbox / pillarbox / background-to-the-edges / bottom-clipping in about 0.3s.
+It normalizes the mock to the render's size, so a non-reference device is a normal comparison rather than an error, and it answers letterbox / pillarbox / background-to-the-edges / bottom-clipping in about 0.3s per pair. No image enters context here.
 
-**It is not the gate.** It sees geometry, not design: a wrong typeface, a mirrored icon, wrong copy or a shade under the threshold all pass, and it prints that list with every run. Eyes go on every `FAIL`, and on **one `PASS` per screen** — a screen whose every row passed mechanically has still never been looked at.
+**2. `visual-comparison` over the pairs that earned it** — one explorer subagent per screen, against a `#Preview` or a simulator screenshot:
+
+- every pair the geometry pass marked `FAIL`;
+- **one `PASS` pair per screen**, chosen as the most content-dense state.
+
+The second rule is not optional bookkeeping. The geometry pass sees geometry, not design: a wrong typeface, a mirrored icon, wrong copy, a shade under the threshold — all pass, and the script prints that list with every run. A screen whose pairs all passed mechanically has never been compared to its design.
+
+Which concrete tool fills `visual-comparison` comes from this run's ledger; the adapters list the candidates usually registered on each agent. Its report is an artifact on disk — the subagent returns the summary and the path, per the return cap.
+
+## Comparison rules
+
+These bind both passes, and the second one especially:
+
+- The style reference is the **full screenshot of the parent frame**: an isolated node export bakes in screen backgrounds and is only good for slicing assets. A bound tool that exports an isolated node by default is used against the parent-frame screenshot anyway.
+- Verify Typography/Colors and other numbers from design context, not by pixel approximation.
+- Mark intentional deviations coming from the resolved contract explicitly.
+- Every screen is compared on at least one **non-reference** size: at the reference size a fixed canvas matches pixel-for-pixel and hides the breakage.
+- An inset divergence inside the LAY-07 system-value snap window (−2…+4pt) is a match, not a defect.
 
 ## Fallback
 
-- `visual-comparison` unbound → manual comparison against the parent-frame screenshot under the same rules and evidence.
-- No `sips` (non-macOS host) → the mechanical pass is skipped and every pair is compared by eye; record that in the gate evidence, because the gate just got wider, not narrower.
+- `screenshot-geometry` unavailable (no `sips`, non-macOS host) → no filter; every pair goes to `visual-comparison` and that is recorded in the gate evidence, because the stage just got more expensive, not less strict.
+- `visual-comparison` unbound → manual comparison against the parent-frame screenshot under the same rules and evidence. The geometry pass never substitutes for it.
 - No `FIGMA_ACCESS_TOKEN` → blocker before the stage.
 
 ## Gate
@@ -40,6 +51,7 @@ It normalizes the mock to the render's size, so a non-reference device is a norm
 - ❌ items fixed and re-compared.
 - Contract deviations explained.
 - A non-reference size covered per screen.
-- The mechanical pass ran, its `SCREENSHOT_DIFF_CLEAN` / `SCREENSHOT_DIFF_DIRTY` marker and report path recorded, and every `FAIL` plus one `PASS` per screen reviewed by eye.
+- The geometry pass ran over every pair, with its `SCREENSHOT_DIFF_CLEAN` / `SCREENSHOT_DIFF_DIRTY` marker and report path recorded.
+- Every `FAIL`, plus one `PASS` per screen, went through `visual-comparison` — named in the manifest's `Looked at by eye` column, which is never empty.
 
 `#Preview` ≠ the flow — runtime navigation belongs to stage 7.
