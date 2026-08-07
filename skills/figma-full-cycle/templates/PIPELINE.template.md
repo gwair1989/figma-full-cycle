@@ -1,7 +1,7 @@
 # <FEATURE> — Pipeline manifest
 
 > The full cycle's source of truth. Only the main thread of the `figma-full-cycle` skill writes here.
-> pipeline_schema_version: 12
+> pipeline_schema_version: 13
 > run_id: <RUN_ID> <!-- date+slug; new on a fresh start, preserved across resume -->
 > Figma: <FIGMA_URL>
 > Figma pin: fileKey=<KEY> node=<NODE> version=<VERSION_OR_HASH> checked_at=<TS>
@@ -26,6 +26,7 @@
 | `ui-plan-validation` | `scripts/ui_plan.py` | `script / repo-internal` | pinned | `ready` | 1, 3, 7 |
 | `layout-color-guard` | `<project guard / scripts/ui_guard.py>` | `script / <project / repo-internal>` | | `todo` | 3, 8 |
 | `manifest-read` | `scripts/manifest.py` | `script / repo-internal` | pinned | `ready` | resume, 1–8 |
+| `screenshot-geometry` | `scripts/screenshot_diff.py` | `script / repo-internal` | pinned (needs `sips`) | `todo` | 5, 6 |
 | `design-source-read` | | `mcp-tool / vendor-official` | | `todo` | 1, 2, 3, 5 |
 | `design-to-code-workflow` | | `<skill / mcp-resource> / <vendor-official / third-party>` | | `todo` | 1, 3 |
 | `platform-design-translator` | | | | `todo` | 3 |
@@ -218,9 +219,14 @@ Statuses: `todo / clean / hits / fixed / waived`. A clean run of a project guard
 
 One row per combination. The set comes from the deployment target, the spec, and the Layout, Strings, Typography and Accessibility contracts. Layout (LAY-11) makes these mandatory: the smallest supported device, the largest, and devices both with and without a home indicator (different bottom safe area). Per device the evidence explicitly states that the layout fits the screen, that there is no unintended letterboxing, no clipped content, and that the background reaches the edges. Then the remaining axes: smallest + largest screen; light/dark; permitted content sizes; supported locales and directions and long copy; orientations if supported; keyboard and safe area. Add AX/VoiceOver/Reduce Motion/increased contrast and other accessibility-only rows only when Accessibility scope is explicitly active; the `no-add` baseline does not create them.
 
-| Screen | Device | Appearance | Content size | Locale / direction | Orientation | Status | Evidence |
-|--------|--------|------------|--------------|--------------------|-------------|--------|----------|
-| | | | | | | `todo` | |
+> Mechanical pass: `python3 <skill-root>/scripts/screenshot_diff.py batch --plan <matrix.json> --out <report>`
+> Result: `<SCREENSHOT_DIFF_CLEAN / SCREENSHOT_DIFF_DIRTY>` at `<TS>`, `<n>` rows, `<n>` failed, report `<path>`
+> Reviewed by eye: every failing row, plus one passing row per screen — list them below. The script is
+> blind to typeface, icon shape, copy and small colour shifts; a green batch is a filter, not a gate.
+
+| Screen | Device | Appearance | Content size | Locale / direction | Orientation | Geometry check | Status | Evidence |
+|--------|--------|------------|--------------|--------------------|-------------|----------------|--------|----------|
+| | | | | | | `<pass / fail / by-eye>` | `todo` | |
 
 ## Question log
 
@@ -236,11 +242,13 @@ Statuses: `open` / `answered` / `resolved-from-docs` (name where it was found: s
 
 ## Design comparison (stage 5)
 
-| Screen | Report | Sizes compared (reference + non-reference) | ❌ → fix | Status |
-|--------|--------|--------------------------------------------|----------|--------|
-| | `<report path of the bound visual-comparison tool>/<FEATURE>/...` | `<393×852 + 375×667>` | | |
+| Screen | Report | Sizes compared (reference + non-reference) | Geometry check | Looked at by eye | ❌ → fix | Status |
+|--------|--------|--------------------------------------------|----------------|------------------|----------|--------|
+| | `<report path of the bound visual-comparison tool>/<FEATURE>/...` | `<393×852 + 375×667>` | `<pass / fail / not-run>` | `<which pair, and why that one>` | | |
 
 A screen is not comparable while only the reference size is covered. An inset divergence inside the LAY-07 snap window (−2…+4pt) is a match, not a ❌.
+
+`Looked at by eye` is never empty: `screenshot_diff.py` reports geometry, so a screen whose rows all passed mechanically has still not been compared to its design. One pair per screen is the floor, and every failing pair is on top of that.
 
 ## TBD / stubs (stage 7)
 

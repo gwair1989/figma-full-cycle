@@ -138,7 +138,7 @@ skills/
 │   │   │                            #   strings, layout, colors, conventions, pitfalls
 │   │   └── stages/                  # stage-1.md … stage-8.md, read at that stage
 │   ├── scripts/                     # ui_plan.py, localization_context.py, ui_guard.py,
-│   │                                #   manifest.py (+ tests)
+│   │                                #   manifest.py, screenshot_diff.py (+ tests)
 │   ├── templates/                   # PIPELINE, PIPELINE.local, UI_PLAN
 │   └── agents/openai.yaml           # OpenAI-style agent manifest
 ├── figma-feature-spec/              # stage 1 as a standalone skill
@@ -149,7 +149,7 @@ skills/
     └── scripts/                     # imageset generator, PNG canvas normalizer
 ```
 
-### The four scripts
+### The five scripts
 
 All read-only, stdlib-only CLIs — the skill calls them so the model never has to swallow raw data:
 
@@ -194,6 +194,23 @@ python3 skills/figma-full-cycle/scripts/manifest.py verify-sources \
 by stage 6 — and answers the question a resume actually has: `verify-sources` re-hashes the documents
 the UI convention contract was resolved from and reports per area `unchanged` / `CHANGED` /
 `unrecorded`, so an unchanged project costs one command instead of re-reading its documentation.
+
+```bash
+python3 skills/figma-full-cycle/scripts/screenshot_diff.py compare \
+  --render build/Onboarding@iPhoneSE.png --mock design/Onboarding.png \
+  --ignore-top 6% --out reports/onboarding-se.json
+```
+
+`screenshot_diff.py` compares an implementation screenshot against a design mock **of a different
+size** — it normalizes the mock to the render first, because at the reference size a fixed-canvas
+layout matches pixel-for-pixel and hides the breakage. It answers the four LAY-11 questions
+(letterbox, pillarbox, clipped content, background reaching the edges) in about 0.3s per pair, with a
+`batch` mode for the stage 6 matrix. It needs `sips`, which ships with macOS — the pipeline already
+requires macOS for `xcrun simctl`, so nothing new gets installed.
+
+It is a filter, not the gate: it sees geometry, not design, and prints with every run what it is
+blind to — typeface, icon shape, copy, small colour shifts. Eyes go on every failure and on one
+passing pair per screen.
 
 ## Safety model
 

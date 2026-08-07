@@ -16,6 +16,22 @@ versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and prints with every run a coverage note naming the rules it did **not** check — a clean run is
   only as wide as that note. New `layout-color-guard` role: the project's own guard when it has one,
   the shipped script otherwise.
+- `scripts/screenshot_diff.py` — the stage 5 and 6 screenshot check, mechanically. Normalizes the
+  mock to the render's size with `sips`, then answers the four LAY-11 questions — letterbox,
+  pillarbox, clipped content, background reaching the edges — plus a coarse structural diff, in
+  ~0.3s per pair, with a `batch` mode for the stage 6 matrix (~10s for 30 rows instead of 30 images
+  in context). Comparing sizes that differ is the point: at the reference size a fixed-canvas layout
+  matches pixel-for-pixel and hides the breakage. `--ignore-top/--ignore-bottom` cut the status bar
+  and home indicator, both inputs are converted to sRGB, and an alpha channel in either input is
+  flagged. Needs `sips`, which ships with macOS — the pipeline already requires macOS for
+  `xcrun simctl`, so nothing is installed and the stdlib-only promise holds. New
+  `screenshot-geometry` role; without `sips` the fallback is comparing every pair by eye and
+  recording that the filter did not run.
+
+  It is a filter and never the gate: it prints with every run what it is blind to — typeface, icon
+  shape, copy, colour shifts under the threshold — and the manifest now has a `Looked at by eye`
+  column that is never empty, because a screen whose rows all passed mechanically has still not been
+  compared to its design.
 - `scripts/manifest.py` — read-only manifest access. `sections` and `get` read the parts a stage
   needs instead of a file that runs tens of kilobytes by stage 6; `digest` and `verify-sources`
   answer the question a resume actually has — did the documents the UI convention contract was
@@ -80,9 +96,14 @@ versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   which is the one way this saving turns into a bug. Resume still reads the manifest whole.
 - The Figma cache rule became concrete: a path, a `pin.json` key, and a discard rule (pin changed →
   drop the whole directory rather than reason about which nodes moved).
-- Pipeline manifest template `pipeline_schema_version: 12`: `layout-color-guard` and `manifest-read`
-  ledger rows, contract sources recorded as `path#section @ digest`, and the UI policy check table
-  records the guard's exact invocation, its clean/dirty marker and which rows it cannot fill.
+- Stages 5 and 6 run a mechanical geometry pass before anything is looked at, and the gates now
+  require both the run's marker and a record of what was reviewed by eye — every failing pair, plus
+  one passing pair per screen.
+- Pipeline manifest template `pipeline_schema_version: 13`: `layout-color-guard`, `manifest-read`
+  and `screenshot-geometry` ledger rows; contract sources recorded as `path#section @ digest`; the
+  UI policy check table records the guard's exact invocation, its clean/dirty marker and which rows
+  it cannot fill; the adaptivity matrix and design comparison tables carry the geometry-check result
+  and a `Looked at by eye` column.
 - `check.sh` runs every `scripts/tests/test_*.py` instead of the single validator suite.
 - Stages are bound by **role**, not by skill name. Outside the skills shipped here, every name in
   `SKILL.md` and the adapters is an example verified against the live catalog; a role can bind a

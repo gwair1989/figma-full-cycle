@@ -62,6 +62,7 @@ Each role is a slot. `pinned` roles are satisfied by this repository and are nev
 | `ui-plan-validation` | UI Plan schema + phase gates | pinned: `scripts/ui_plan.py` | 1, 3, 7 | blocker |
 | `layout-color-guard` | mechanical LAY/COL detection over the feature's changed files | the project's own guard when documentation names one, else pinned: `scripts/ui_guard.py` | 3, 8 | blocker (repo broken) |
 | `manifest-read` | read-only section reads of the manifest and contract source digests | pinned: `scripts/manifest.py` | resume, 1–8 | read the manifest whole; the stages still run |
+| `screenshot-geometry` | mechanical letterbox / clipping / background / structure check between a render and a mock of any size | pinned: `scripts/screenshot_diff.py` (needs `sips`) | 5, 6 | compare every pair by eye and record that the mechanical filter did not run |
 | `design-source-read` | authenticated scoped reads of the pinned Figma nodes | discovered MCP toolset | 1, 2, 3, 5 | blocker |
 | `design-to-code-workflow` | the design vendor's own required workflow for translating design context into code; the name that must be declared when the vendor's read tools log it | discovered, `vendor-official` preferred | 1, 3 | never fake the declaration: use the discovered generic implementation skill, else the UI Plan + project contract path, and record `degraded` |
 | `platform-design-translator` | translating design context into the project's UI framework idiom | discovered | 3 | generic implementation skill + the project's UI skills |

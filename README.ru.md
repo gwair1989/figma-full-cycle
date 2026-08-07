@@ -138,7 +138,7 @@ skills/
 │   │   │                            #   строки, layout, colors, конвенции, pitfalls
 │   │   └── stages/                  # stage-1.md … stage-8.md, читаются на своём этапе
 │   ├── scripts/                     # ui_plan.py, localization_context.py, ui_guard.py,
-│   │                                #   manifest.py (+ тесты)
+│   │                                #   manifest.py, screenshot_diff.py (+ тесты)
 │   ├── templates/                   # PIPELINE, PIPELINE.local, UI_PLAN
 │   └── agents/openai.yaml           # манифест агента в формате OpenAI
 ├── figma-feature-spec/              # этап 1 как отдельный скилл
@@ -149,7 +149,7 @@ skills/
     └── scripts/                     # генератор imageset, нормализация PNG-канваса
 ```
 
-### Четыре скрипта
+### Пять скриптов
 
 Все read-only и на чистой стандартной библиотеке — скилл зовёт их, чтобы модель не глотала сырые
 данные:
@@ -196,6 +196,23 @@ python3 skills/figma-full-cycle/scripts/manifest.py verify-sources \
 хэши документов, по которым резолвился контракт конвенций, и говорит по каждой области
 `unchanged` / `CHANGED` / `unrecorded`. Неизменившийся проект стоит одной команды вместо повторного
 чтения его документации.
+
+```bash
+python3 skills/figma-full-cycle/scripts/screenshot_diff.py compare \
+  --render build/Onboarding@iPhoneSE.png --mock design/Onboarding.png \
+  --ignore-top 6% --out reports/onboarding-se.json
+```
+
+`screenshot_diff.py` сравнивает скриншот реализации с макетом **разного размера** — макет сначала
+нормализуется к размеру рендера, потому что на референсном устройстве вёрстка с фиксированным
+канвасом совпадает пиксель-в-пиксель и прячет поломку. Отвечает на четыре вопроса LAY-11
+(леттербокс, пилларбокс, обрезанный контент, фон до краёв) за ~0.3 с на пару, плюс режим `batch` для
+матрицы этапа 6. Нужен `sips` — он идёт с macOS, а пайплайн и так требует macOS из-за `xcrun simctl`,
+так что ставить нечего.
+
+Это фильтр, а не гейт: он видит геометрию, а не дизайн, и с каждым запуском печатает, чего он не
+видит — шрифт, форму иконки, текст, мелкие сдвиги цвета. Глазами смотрим каждый провал и одну
+прошедшую пару на экран.
 
 ## Модель безопасности
 

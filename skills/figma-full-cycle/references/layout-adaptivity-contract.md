@@ -128,6 +128,7 @@ Compensation is a symptom. Fix the cause first — where the geometry comes from
 - The stage 6 matrix must include the **smallest supported device** and devices **with and without a home indicator** (different bottom safe area) — these are different bug classes.
 - A screen with geometry needs at least two `#Preview`s: the smallest and the largest supported device. The default preview is the reference device and proves nothing.
 - Evidence is a screenshot per required device with explicit checks: the layout fits the screen, there is no unintended letterboxing, no clipped content, the background reaches the edges.
+- Those four checks are what [`../scripts/screenshot_diff.py`](../scripts/screenshot_diff.py) answers mechanically, in a batch over the whole matrix. It compares a mock against a render **of a different size**, which is the point: at the reference size a fixed canvas matches pixel-for-pixel. It is a filter, not the gate — it is blind to typeface, icon shape, copy and small colour shifts, so eyes go on every failing row and on one passing row per screen.
 
 ## 3. How this enters the stages
 
