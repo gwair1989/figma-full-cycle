@@ -384,6 +384,34 @@ class TestReportingAndPlumbing(ScreenshotDiffTestCase):
         self.assertIn("edge_bands", payload[0]["checks"])
         self.assertNotIn("edge_bands", result.stdout)
 
+    def test_the_grid_map_shows_where_the_cells_differ(self) -> None:
+        width, height = RENDER_SIZE
+        inner = scaled_box(width, height, 0.22, 0.78, 0.23, 0.74)
+        render = self.render_with(
+            "pillarbox.png",
+            lambda x, y: BAR if (x < width * 0.09 or x > width * 0.91) else inner(x, y),
+        )
+
+        result = self.compare(render, "--grid-map")
+
+        self.assertIn("(. match, # differs)", result.stdout)
+        self.assertIn("#", result.stdout)
+
+    def test_the_map_is_always_in_the_full_report(self) -> None:
+        out = self.root / "diff.json"
+        self.compare(self.render, "--out", str(out))
+        payload = json.loads(out.read_text(encoding="utf-8"))
+
+        grid = payload[0]["checks"]["grid"]
+        self.assertEqual(len(grid["map"]), grid["rows"])
+        self.assertEqual(len(grid["map"][0]), grid["cols"])
+
+    def test_the_markers_are_documented_in_help(self) -> None:
+        result = run("compare", "--help")
+
+        self.assertIn("SCREENSHOT_DIFF_CLEAN", result.stdout)
+        self.assertIn("aspect-tolerance", result.stdout)
+
     def test_json_format_prints_verdicts_only(self) -> None:
         result = self.compare(self.render, "--format", "json")
         payload = json.loads(result.stdout)

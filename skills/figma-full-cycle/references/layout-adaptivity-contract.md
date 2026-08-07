@@ -58,7 +58,29 @@ Detection: arithmetic inside `.frame(width:`/`height:`; a numeric `width:` ≥ 3
 
 Absolute Figma coordinates are not a layout technique: they are valid at exactly one canvas size and make the screen impossible to re-lay-out.
 
-Detection: any `.position(`; `.offset(` outside an animation context.
+**Exception — a fixed-size composition.** A group of elements that form one piece of artwork, sized in the design and anchored natively by its parent, places its parts against *each other*, not against the screen. That is the same allowance LAY-03 already makes for a genuinely fixed element, applied to a group. Three animals inside a 280×180 illustration are artwork; the screen they sit on is not.
+
+Declare it once, above the block:
+
+```swift
+// ui-guard: composition OnboardingAnimals — 280×180 artwork, anchored by the parent
+ZStack {
+    Image("cat").offset(x: -84.1, y: 0.4)
+    …
+}
+.frame(width: 280, height: 180)
+```
+
+The marker covers the block and the modifiers chained onto it. One comment for the group, not a waiver per element — a rule that costs a waiver per element teaches people to waive without reading.
+
+Two conditions, both checked:
+
+- **The group is anchored natively.** Its own placement obeys LAY-04 and LAY-05; only its interior is exempt.
+- **The group is not the screen.** A composition whose frame is screen-sized is refused and its contents are reported as usual. Otherwise the marker would license exactly the fixed-canvas pattern LAY-01 forbids, one comment at a time.
+
+Every exemption is listed in the guard's output with its name and lines: an exemption nobody sees is a rule nobody enforces.
+
+Detection: any `.position(`; `.offset(` outside an animation context, minus declared compositions.
 
 ### LAY-05 — position with `alignment`, space with `padding`
 

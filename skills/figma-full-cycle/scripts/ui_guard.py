@@ -71,6 +71,10 @@ UNCHECKED = {
 }
 
 WAIVER_RE = re.compile(r"//\s*ui-guard:\s*allow\s+([A-Z]{3}-\d{2})")
+# Opens a fixed-size artwork group: inside it, elements are placed against each
+# other rather than against the screen, so LAY-04 does not apply. One comment
+# covers the whole block — a waiver per element trains the reflex to waive.
+COMPOSITION_RE = re.compile(r"//\s*ui-guard:\s*composition\b\s*([^\n]*)")
 CONSTANT_RE = re.compile(
     r"^(?:public\s+|private\s+|internal\s+|fileprivate\s+|open\s+)*"
     r"(?:static\s+)?(?:let|var)\s+(\w+)\s*(?::\s*[^=]+?)?\s*=\s*(.+)$"
@@ -117,6 +121,22 @@ ALPHA_NAME_RE = re.compile(
 )
 
 
+EPILOG = """Exit codes: 0 clean, 1 findings, 2 usage error.
+The last stdout line is UI_GUARD_CLEAN or UI_GUARD_DIRTY — those two values, nothing else,
+safe to grep.
+
+Source annotations:
+  // ui-guard: allow LAY-04 — <reason>
+      Waives one finding. Put it on the offending line or the line above. Waivers are
+      counted in the summary, never hidden.
+  // ui-guard: composition <name> — <reason>
+      Opens a block of fixed-size artwork whose elements are placed against each other, so
+      LAY-04 does not apply inside it. Covers the braces it opens and the modifiers chained
+      onto them, so one comment replaces a waiver per element. Refused when the block pins a
+      screen-sized frame — a canvas is not artwork. Exemptions are listed in the output.
+"""
+
+
 @dataclass(frozen=True)
 class Finding:
     path: str
@@ -143,6 +163,18 @@ class Finding:
             "context": self.context,
             "waived": self.waived,
         }
+
+
+@dataclass(frozen=True)
+class Composition:
+    """A block declared as fixed-size artwork, exempt from LAY-04."""
+
+    name: str
+    start: int
+    end: int
+
+    def covers(self, line: int) -> bool:
+        return self.start <= line <= self.end
 
 
 @dataclass
@@ -184,6 +216,8 @@ class SourceFile:
         self.chains = build_chains(self.code_lines)
         self.preview_lines = preview_regions(self.raw_lines)
         self.constants = collect_constants(self.code_lines)
+        self.compositions = composition_regions(self.raw_lines, self.code_lines)
+        self.composition_hits: List[Tuple[str, int]] = []
 
     def has_text_views(self) -> bool:
         return any(re.search(r"\bText\s*\(", line) for line in self.code_lines)
@@ -302,6 +336,49 @@ def build_chains(code_lines: Sequence[str]) -> List[Chain]:
     return chains
 
 
+def composition_regions(raw_lines: Sequence[str], code_lines: Sequence[str]) -> List[Composition]:
+    """Blocks opened by a `// ui-guard: composition …` comment.
+
+    The block runs from the marker to where the braces it opens close again. A
+    marker with no braces after it covers the single following statement.
+    """
+    compositions: List[Composition] = []
+    for index, line in enumerate(raw_lines):
+        match = COMPOSITION_RE.search(line)
+        if not match:
+            continue
+        # `composition Animals — 280x180 artwork` → name `Animals`, the rest is
+        # the reason and belongs to the reader, not to the identifier.
+        name = re.split(r"\s+[-—:]\s+|\s{2,}", match.group(1).strip(), 1)[0].strip(" -—:")
+        name = name or "unnamed"
+
+        start = index + 1
+        depth = 0
+        opened = False
+        end = start
+        for cursor in range(index, len(code_lines)):
+            text = code_lines[cursor]
+            depth += text.count("{") - text.count("}")
+            if text.count("{"):
+                opened = True
+            end = cursor + 1
+            if opened and depth <= 0:
+                break
+            if not opened and cursor > index and text.strip():
+                break
+
+        # The modifiers chained onto the block belong to it — including the
+        # `.frame(...)` that declares its size, which is what the screen-sized
+        # check has to see.
+        cursor = end
+        while cursor < len(code_lines) and code_lines[cursor].lstrip().startswith("."):
+            end = cursor + 1
+            cursor += 1
+
+        compositions.append(Composition(name=name, start=start, end=end))
+    return compositions
+
+
 def preview_regions(raw_lines: Sequence[str]) -> set:
     """Line numbers that sit inside a #Preview or PreviewProvider block."""
     inside: set = set()
@@ -395,6 +472,7 @@ def check_layout(source: SourceFile, canvas: Optional[Tuple[float, float]]) -> L
     constants = source.constants
 
     canvas_frames: List[Tuple[int, str]] = []
+    placement: List[Finding] = []  # LAY-04, decided after the canvas frames are known
 
     for chain in source.chains:
         text = chain.text
@@ -463,7 +541,7 @@ def check_layout(source: SourceFile, canvas: Optional[Tuple[float, float]]) -> L
 
         position = re.search(r"\.position\s*\(", text)
         if position:
-            findings.append(
+            placement.append(
                 Finding(
                     source.display,
                     chain.line_at(position.start()),
@@ -482,7 +560,7 @@ def check_layout(source: SourceFile, canvas: Optional[Tuple[float, float]]) -> L
                 if value is not None and resolve_number(value, constants) is not None
             ]
             if static:
-                findings.append(
+                placement.append(
                     Finding(
                         source.display,
                         chain.line_at(offset.start()),
@@ -521,6 +599,32 @@ def check_layout(source: SourceFile, canvas: Optional[Tuple[float, float]]) -> L
                         ),
                     )
                 )
+
+    # A composition exempts its contents from LAY-04 — unless the block is itself
+    # screen-sized, which would make the marker a way to license the very
+    # fixed-canvas pattern the contract exists to forbid.
+    honoured: List[Composition] = []
+    for composition in source.compositions:
+        canvas_inside = [line for line, _ in canvas_frames if composition.covers(line)]
+        if canvas_inside:
+            findings.append(
+                Finding(
+                    source.display,
+                    composition.start,
+                    "LAY-04",
+                    "composition '{}' pins a screen-sized frame (line {}) — a canvas is not artwork, "
+                    "the exemption does not apply".format(composition.name, canvas_inside[0]),
+                )
+            )
+            continue
+        honoured.append(composition)
+
+    for finding in placement:
+        covering = next((c for c in honoured if c.covers(finding.line)), None)
+        if covering is None:
+            findings.append(finding)
+        else:
+            source.composition_hits.append((covering.name, finding.line))
 
     scale_lines = [
         number for number, text in enumerate(source.code_lines, start=1) if ".scaleEffect(" in text
@@ -854,11 +958,20 @@ def run_check(args: argparse.Namespace) -> int:
     active = [finding for finding in findings if not finding.waived]
     waived = [finding for finding in findings if finding.waived]
 
+    exempted = [
+        (source.display, name, line)
+        for source in sources.values()
+        for name, line in source.composition_hits
+    ]
+
     if args.format == "json":
         payload = {
             "clean": not active,
             "files_scanned": len(sources),
             "findings": [finding.as_dict() for finding in findings],
+            "composition_exemptions": [
+                {"path": path, "composition": name, "line": line} for path, name, line in sorted(exempted)
+            ],
             "checked_rules": sorted(rule for rule in CHECKED if rule[:3] in rules),
             "reviewer_rules": sorted(rule for rule in UNCHECKED if rule[:3] in rules),
         }
@@ -868,13 +981,32 @@ def run_check(args: argparse.Namespace) -> int:
     for finding in active[: args.max_findings]:
         print(finding.render(), file=sys.stderr)
     if len(active) > args.max_findings:
-        print("... {} more".format(len(active) - args.max_findings), file=sys.stderr)
+        print(
+            "... {} more — raise --max-findings (currently {}) or use --format json".format(
+                len(active) - args.max_findings, args.max_findings
+            ),
+            file=sys.stderr,
+        )
+
+    # Exemptions are announced, never silent: a composition marker that quietly
+    # swallowed a screen's worth of offsets would be worse than no rule.
+    by_composition: Dict[Tuple[str, str], List[int]] = {}
+    for path, name, line in exempted:
+        by_composition.setdefault((path, name), []).append(line)
+    for (path, name), lines in sorted(by_composition.items()):
+        print(
+            "{}: composition '{}' exempts {} placement call(s) on line(s) {}".format(
+                path, name, len(lines), ", ".join(str(line) for line in sorted(lines))
+            )
+        )
 
     for line in coverage_note(rules):
         print(line)
 
     print(
-        "ui-guard: {} findings, {} waived, {} files scanned".format(len(active), len(waived), len(sources))
+        "ui-guard: {} findings, {} waived, {} exempt by composition, {} files scanned".format(
+            len(active), len(waived), len(exempted), len(sources)
+        )
     )
     print("UI_GUARD_DIRTY" if active else "UI_GUARD_CLEAN")
     return 1 if active else 0
@@ -882,11 +1014,18 @@ def run_check(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Detect Layout (LAY) and Colors (COL) contract violations in Swift sources."
+        description="Detect Layout (LAY) and Colors (COL) contract violations in Swift sources.",
+        epilog=EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    check = subparsers.add_parser("check", help="Check files against the LAY and COL detections")
+    check = subparsers.add_parser(
+        "check",
+        help="Check files against the LAY and COL detections",
+        epilog=EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     check.add_argument("files", nargs="*", help="Swift files to check")
     check.add_argument(
         "--changed-since",

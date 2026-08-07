@@ -400,6 +400,78 @@ class TestScaleEffectScope(GuardTestCase):
         self.assertNotIn("LAY-09", rules)
 
 
+class TestCompositions(GuardTestCase):
+    """Fixed-size artwork places its elements against each other, not against the
+    screen. One marker covers the block; a waiver per element would just train
+    the reflex to waive."""
+
+    ARTWORK = (
+        "struct AnimalsGroup: View {\n"  # 1
+        "    var body: some View {\n"  # 2
+        "        // ui-guard: composition OnboardingAnimals — 280x180 artwork, anchored by the parent\n"  # 3
+        "        ZStack {\n"  # 4
+        '            Image("cat").offset(x: -84.1, y: 0.4)\n'  # 5
+        '            Image("dog").offset(x: 8)\n'  # 6
+        '            Image("bird").offset(x: 65.5)\n'  # 7
+        "        }\n"  # 8
+        "        .frame(width: 280, height: 180)\n"  # 9
+        "    }\n"
+        "}\n"
+    )
+
+    def test_placement_inside_a_composition_is_exempt(self) -> None:
+        self.assertNotIn("LAY-04", self.rules_for(self.ARTWORK))
+
+    def test_placement_outside_it_is_still_caught(self) -> None:
+        rules = self.rules_for(
+            self.ARTWORK
+            + "struct Elsewhere: View {\n"
+            + "    var body: some View {\n"
+            + '        Image("badge").offset(x: 12, y: 4)\n'
+            + "    }\n"
+            + "}\n"
+        )
+
+        self.assertIn("LAY-04", rules)
+
+    def test_exemptions_are_announced_with_their_lines(self) -> None:
+        self.write("View.swift", self.ARTWORK)
+        result = self.check("View.swift")
+
+        self.assertIn("composition 'OnboardingAnimals'", result.stdout)
+        self.assertIn("3 placement call(s)", result.stdout)
+        self.assertIn("3 exempt by composition", result.stdout)
+
+    def test_a_screen_sized_composition_is_refused(self) -> None:
+        self.write(
+            "View.swift",
+            "struct FakeComposition: View {\n"
+            "    var body: some View {\n"
+            "        // ui-guard: composition WholeScreen — totally artwork honest\n"
+            "        ZStack {\n"
+            '            Image("a").offset(x: 40, y: 100)\n'
+            '            Image("b").position(x: 200, y: 400)\n'
+            "        }\n"
+            "        .frame(width: 393, height: 852)\n"
+            "    }\n"
+            "}\n",
+        )
+        result = self.check("View.swift", "--reference-canvas", "393x852")
+
+        self.assertIn("a canvas is not artwork", result.stderr)
+        self.assertIn("0 exempt by composition", result.stdout)
+        self.assertIn("static .offset(x: 40, y: 100)", result.stderr)
+        self.assertIn(".position(...)", result.stderr)
+
+    def test_the_reason_is_not_taken_as_the_name(self) -> None:
+        self.write("View.swift", self.ARTWORK)
+        result = self.check("View.swift", "--format", "json")
+        payload = json.loads(result.stdout)
+
+        names = {item["composition"] for item in payload["composition_exemptions"]}
+        self.assertEqual(names, {"OnboardingAnimals"})
+
+
 class TestColorRules(GuardTestCase):
     def test_every_literal_form_is_detected(self) -> None:
         forms = (
@@ -525,6 +597,26 @@ class TestWaiversAndPlumbing(GuardTestCase):
 
         self.assertEqual(result.returncode, 1)
         self.assertIn("LAY-04", result.stderr)
+
+    def test_truncated_output_names_the_flag_that_lifts_it(self) -> None:
+        self.write(
+            "View.swift",
+            "struct V: View { var body: some View {\n"
+            + "".join(
+                '    Image("i{}").position(x: 1, y: 2)\n'.format(index) for index in range(6)
+            )
+            + "} }\n",
+        )
+        result = self.check("View.swift", "--max-findings", "2")
+
+        self.assertIn("--max-findings", result.stderr)
+        self.assertIn("--format json", result.stderr)
+
+    def test_the_markers_are_documented_in_help(self) -> None:
+        result = run("check", "--help")
+
+        self.assertIn("UI_GUARD_CLEAN", result.stdout)
+        self.assertIn("ui-guard: composition", result.stdout)
 
     def test_bad_reference_canvas_is_a_usage_error(self) -> None:
         result = self.check("--reference-canvas", "393")

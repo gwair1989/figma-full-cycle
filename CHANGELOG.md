@@ -79,8 +79,26 @@ versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `/usr/bin/python3` 3.9 from the Xcode Command Line Tools), skill lint, shell syntax.
 - `tools/pre-push` — optional git hook that runs `check.sh` before a push.
 
+### Added
+
+- LAY-04 gets a fixed-size composition exception, declared once above the block:
+  `// ui-guard: composition <name> — <reason>`. A group of elements forming one piece of artwork,
+  sized in the design and anchored natively by its parent, places its parts against each other and
+  not against the screen — the allowance LAY-03 already makes for a single fixed element, applied to
+  a group. The marker covers the block and the modifiers chained onto it, so one comment replaces a
+  waiver per element; a rule costing a waiver per element teaches people to waive without reading.
+  Refused when the block's frame is screen-sized, which would otherwise license the fixed-canvas
+  pattern one comment at a time. Every exemption is printed with its name and lines.
+- `screenshot_diff.py --grid-map` prints which cells differ as text. `44% of cells differ` does not
+  say whether the screen shifted, lost its bottom or drifted on one side, and finding out otherwise
+  meant opening the images — the cost the script exists to avoid. The map is always in the JSON
+  report.
+
 ### Fixed
 
+- Both scripts document their exit codes, their `*_CLEAN` / `*_DIRTY` stdout markers and their source
+  annotations in `--help` — on the subcommand, where they are actually read. The truncation notice
+  now names `--max-findings` and `--format json` instead of leaving the reader to guess.
 - `screenshot_diff.py` no longer gates on the grid diff across device classes. Normalizing stretches
   the mock anisotropically while a native layout adapts by holding its metrics in points, so a
   correctly adapted screen diverges from the stretched mock exactly as a broken one does — measured

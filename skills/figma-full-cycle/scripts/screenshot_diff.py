@@ -77,6 +77,20 @@ BLIND_TO = (
 )
 
 
+EPILOG = """Exit codes: 0 every pair passed, 1 at least one failed, 2 usage error.
+The last stdout line is SCREENSHOT_DIFF_CLEAN or SCREENSHOT_DIFF_DIRTY — those two values,
+nothing else, safe to grep.
+
+The verdict gates on letterbox, pillarbox and background-to-the-edge. When the mock and the
+render differ in aspect ratio by more than --aspect-tolerance, the grid diff and the
+bottom-band count are reported but NOT gated: a correctly adapted native layout diverges from
+the stretched mock exactly as a broken one does. Clipping on a smaller device is a reviewer
+question, not a verdict.
+
+Use --grid-map to see where the cells differ, and --out to keep the full JSON report on disk.
+"""
+
+
 class DiffError(RuntimeError):
     pass
 
@@ -281,6 +295,19 @@ def aspect_of(size: Tuple[int, int]) -> float:
     return float(height) / float(width) if width else 0.0
 
 
+def grid_map(cols: int, rows: int, bad: Sequence[Dict[str, object]]) -> List[str]:
+    """Where the cells differ, as text.
+
+    `44% of cells differ` does not say whether the screen shifted, lost its
+    bottom, or drifted on one side — and finding out otherwise means opening the
+    images, which is the cost this script exists to avoid.
+    """
+    flagged = {(int(cell["col"]), int(cell["row"])) for cell in bad}
+    return [
+        "".join("#" if (col, row) in flagged else "." for col in range(cols)) for row in range(rows)
+    ]
+
+
 def compare_images(
     render: Image,
     mock: Image,
@@ -379,6 +406,7 @@ def compare_images(
         "bad_cells": bad,
         "bad_ratio": ratio,
         "comparable": grid_comparable,
+        "map": grid_map(cols, rows, bad),
     }
 
     bottom_band_rows = max(1, rows // 6)
@@ -510,6 +538,15 @@ def emit(reports: Sequence[Dict[str, object]], args: argparse.Namespace) -> int:
             if not verdict.get("grid_comparable", True):
                 print("      {}".format(grid_note))
 
+        if args.grid_map:
+            for report in reports:
+                verdict = report["verdict"]
+                label = verdict["label"] or Path(str(report["render"])).name
+                grid = report["checks"]["grid"]
+                print("\n{}  grid {}x{}  (. match, # differs)".format(label, grid["cols"], grid["rows"]))
+                for row in grid["map"]:
+                    print("  {}".format(row))
+
         for report in reports:
             for note in report.get("notes", []):
                 print("note: {}".format(note), file=sys.stderr)
@@ -584,6 +621,11 @@ def add_common(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--min-band-px", type=int, default=DEFAULT_MIN_BAND_PX)
     parser.add_argument("--sample-step", type=int, default=DEFAULT_SAMPLE_STEP)
     parser.add_argument(
+        "--grid-map",
+        action="store_true",
+        help="Print which cells differ as a text map — where the difference is, not just how much",
+    )
+    parser.add_argument(
         "--aspect-tolerance",
         type=float,
         default=DEFAULT_ASPECT_TOLERANCE,
@@ -602,18 +644,30 @@ def add_common(parser: argparse.ArgumentParser) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Compare implementation screenshots against design mocks of any size."
+        description="Compare implementation screenshots against design mocks of any size.",
+        epilog=EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    compare = subparsers.add_parser("compare", help="Compare one render against one mock")
+    compare = subparsers.add_parser(
+        "compare",
+        help="Compare one render against one mock",
+        epilog=EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     compare.add_argument("--render", required=True)
     compare.add_argument("--mock", required=True)
     compare.add_argument("--label", help="Name for this pair in the output")
     add_common(compare)
     compare.set_defaults(handler=run_compare)
 
-    batch = subparsers.add_parser("batch", help="Compare every pair in a JSON plan (the stage 6 matrix)")
+    batch = subparsers.add_parser(
+        "batch",
+        help="Compare every pair in a JSON plan (the stage 6 matrix)",
+        epilog=EPILOG,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     batch.add_argument("--plan", required=True, help="JSON list of {label, render, mock} objects")
     batch.add_argument("--project-root", default=".")
     batch.add_argument(

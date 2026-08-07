@@ -202,7 +202,7 @@ The commit subject in the table is the **actual** one from git; one stage = one 
 | LAY-01 fixed canvas + `scaleEffect` | `.scaleEffect(` plus a frame pinning both dimensions — literal or named constant | | `todo` |
 | LAY-02 hard frame on `Color`/shape | `Color`/`Rectangle`/`RoundedRectangle` + numeric `.frame(width:`/`height:` | | `todo` |
 | LAY-03 hard/derived screen-level size | arithmetic inside `.frame(width:`/`height:`; numeric `width:` ≥ 300 | | `todo` |
-| LAY-04 `position`/static `offset` as layout | any `.position(`; `.offset(` outside animation | | `todo` |
+| LAY-04 `position`/static `offset` as layout | any `.position(`; `.offset(` outside animation, minus declared fixed-size compositions | | `todo` |
 | LAY-07 inset snap (−2…+4pt tolerance) | inset literals in the 14–20 range | | `todo` |
 | LAY-08 container modifier order | `.background(` before `.frame(maxWidth: .infinity`; `.ignoresSafeArea()` on a content container | | `todo` |
 | LAY-09 `scaleEffect` over text | a **static** `.scaleEffect(` factor in a file with `Text`; state-driven factors are the permitted animation case | | `todo` |
