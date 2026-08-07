@@ -1,7 +1,7 @@
 # <FEATURE> — Pipeline manifest
 
 > The full cycle's source of truth. Only the main thread of the `figma-full-cycle` skill writes here.
-> pipeline_schema_version: 11
+> pipeline_schema_version: 12
 > run_id: <RUN_ID> <!-- date+slug; new on a fresh start, preserved across resume -->
 > Figma: <FIGMA_URL>
 > Figma pin: fileKey=<KEY> node=<NODE> version=<VERSION_OR_HASH> checked_at=<TS>
@@ -25,6 +25,7 @@
 | `strings-inspection` | `scripts/localization_context.py` | `script / repo-internal` | pinned | `ready` | preflight, 3, 8 |
 | `ui-plan-validation` | `scripts/ui_plan.py` | `script / repo-internal` | pinned | `ready` | 1, 3, 7 |
 | `layout-color-guard` | `<project guard / scripts/ui_guard.py>` | `script / <project / repo-internal>` | | `todo` | 3, 8 |
+| `manifest-read` | `scripts/manifest.py` | `script / repo-internal` | pinned | `ready` | resume, 1–8 |
 | `design-source-read` | | `mcp-tool / vendor-official` | | `todo` | 1, 2, 3, 5 |
 | `design-to-code-workflow` | | `<skill / mcp-resource> / <vendor-official / third-party>` | | `todo` | 1, 3 |
 | `platform-design-translator` | | | | `todo` | 3 |
@@ -56,8 +57,14 @@ Statuses: `ready / degraded / fallback / blocked / stale`. A stage does not star
 
 > The read-only audit ran before Figma and before the worktree; it moves here right after the manifest is created.
 > Checked: base=<BASE_SHA> checked_at=<TS>. On resume, re-check the sources that changed.
+>
+> Every source is recorded as `path#section @ <digest>` — the digest is the first 12 hex characters
+> of the file's SHA-256, from `python3 <skill-root>/scripts/manifest.py digest --project-root . <paths>`.
+> On resume, `manifest.py verify-sources --file <this file> --project-root .` re-hashes them and says
+> per area `unchanged` / `CHANGED` / `unrecorded`; only a changed area is re-read. An area with no
+> digest is `unrecorded` and must be re-read — a blank cell never means "unchanged".
 
-| Area | Project sources (path + section/symbol) | Project rule | Skill baseline | Resolved decision | Status |
+| Area | Project sources (`path#section @ digest`) | Project rule | Skill baseline | Resolved decision | Status |
 |------|------------------------------------------|--------------|----------------|-------------------|--------|
 | Layout | | | `references/layout-adaptivity-contract.md` (LAY-01…LAY-11) | `<reference canvas; scaling API; smallest/largest device; orientations; patterns the project forbids>` | `todo` |
 | Strings | | | `references/project-ui-conventions.md#strings-baseline` | | `todo` |

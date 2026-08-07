@@ -137,7 +137,8 @@ skills/
 │   ├── references/                  # discovery инструментов, контракт UI Plan, Figma acquisition,
 │   │   │                            #   строки, layout, colors, конвенции, pitfalls
 │   │   └── stages/                  # stage-1.md … stage-8.md, читаются на своём этапе
-│   ├── scripts/                     # ui_plan.py, localization_context.py, ui_guard.py (+ тесты)
+│   ├── scripts/                     # ui_plan.py, localization_context.py, ui_guard.py,
+│   │                                #   manifest.py (+ тесты)
 │   ├── templates/                   # PIPELINE, PIPELINE.local, UI_PLAN
 │   └── agents/openai.yaml           # манифест агента в формате OpenAI
 ├── figma-feature-spec/              # этап 1 как отдельный скилл
@@ -148,7 +149,7 @@ skills/
     └── scripts/                     # генератор imageset, нормализация PNG-канваса
 ```
 
-### Три скрипта
+### Четыре скрипта
 
 Все read-only и на чистой стандартной библиотеке — скилл зовёт их, чтобы модель не глотала сырые
 данные:
@@ -181,6 +182,20 @@ python3 skills/figma-full-cycle/scripts/ui_guard.py check \
 `path:line: RULE-ID: message`, поэтому проверка фичи стоит находок, а не чтения диффа. Он намеренно
 частичный и с каждым запуском печатает правила, которые **не** проверял — чистый прогон ровно такой
 ширины, как эта заметка.
+
+```bash
+python3 skills/figma-full-cycle/scripts/manifest.py get \
+  --file docs/FEATURE_PIPELINE.md --section "Capability ledger" --section "Question log"
+
+python3 skills/figma-full-cycle/scripts/manifest.py verify-sources \
+  --file docs/FEATURE_PIPELINE.md --project-root .
+```
+
+`manifest.py` читает части манифеста вместо всего файла — к этапу 6 заполненный весит десятки
+килобайт — и отвечает на вопрос, который реально возникает при resume: `verify-sources` пересчитывает
+хэши документов, по которым резолвился контракт конвенций, и говорит по каждой области
+`unchanged` / `CHANGED` / `unrecorded`. Неизменившийся проект стоит одной команды вместо повторного
+чтения его документации.
 
 ## Модель безопасности
 

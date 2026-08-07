@@ -16,6 +16,17 @@ versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   and prints with every run a coverage note naming the rules it did **not** check — a clean run is
   only as wide as that note. New `layout-color-guard` role: the project's own guard when it has one,
   the shipped script otherwise.
+- `scripts/manifest.py` — read-only manifest access. `sections` and `get` read the parts a stage
+  needs instead of a file that runs tens of kilobytes by stage 6; `digest` and `verify-sources`
+  answer the question a resume actually has — did the documents the UI convention contract was
+  resolved from change — by comparing recorded SHA-256 digests against disk, per area
+  `unchanged` / `CHANGED` / `unrecorded`. An unchanged project costs one command instead of a
+  re-read of its documentation. New `manifest-read` role; its fallback is reading the manifest whole,
+  so the script is an optimization and never a dependency.
+- `docs/.cache/<FEATURE>/` — a gitignored artifact root for every byte that must exist but must not
+  enter context: cached Figma responses keyed by the Figma pin, screenshots, subagent reports, build
+  logs. A loop-back or a targeted re-run reads from disk instead of re-spending MCP calls; clearing
+  the cache costs calls and time, never state.
 - `references/pitfalls.md` — the full failure catalog, grouped by stage and area so a dirty gate can
   read its own group. `SKILL.md` keeps the twelve costliest.
 - `references/stages/stage-1.md` … `stage-8.md` — role binding, fallbacks and full gate per stage,
@@ -60,9 +71,18 @@ versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   digest cannot resolve. Preflight load drops from ~27k to ~16.8k tokens.
 - `SKILL.md` shrinks from 35131 to ~25k chars: the eight stage bodies and the 41-bullet mistake list
   move to references. No rule changed, only where it is stored and when it is read.
-- Pipeline manifest template `pipeline_schema_version: 11`: a `layout-color-guard` ledger row, and
-  the UI policy check table records the guard's exact invocation, its clean/dirty marker and which
-  rows it cannot fill.
+- A subagent's return is capped at ~800 characters, and the cap is on the summary, not on the work:
+  file contents, diffs, raw MCP payloads, catalogs, logs and screenshots are never returned inline —
+  they go to the artifact root and travel as a path plus the derived finding. Delegation that
+  returns the bytes it was sent to read moved the reading, not the cost.
+- A stage reads its manifest sections, not the manifest. The floor is capability ledger + question
+  log + stage table plus whatever the stage owns; below that floor a stage can miss an open blocker,
+  which is the one way this saving turns into a bug. Resume still reads the manifest whole.
+- The Figma cache rule became concrete: a path, a `pin.json` key, and a discard rule (pin changed →
+  drop the whole directory rather than reason about which nodes moved).
+- Pipeline manifest template `pipeline_schema_version: 12`: `layout-color-guard` and `manifest-read`
+  ledger rows, contract sources recorded as `path#section @ digest`, and the UI policy check table
+  records the guard's exact invocation, its clean/dirty marker and which rows it cannot fill.
 - `check.sh` runs every `scripts/tests/test_*.py` instead of the single validator suite.
 - Stages are bound by **role**, not by skill name. Outside the skills shipped here, every name in
   `SKILL.md` and the adapters is an example verified against the live catalog; a role can bind a

@@ -137,7 +137,8 @@ skills/
 │   ├── references/                  # capability discovery, UI plan contract, Figma acquisition,
 │   │   │                            #   strings, layout, colors, conventions, pitfalls
 │   │   └── stages/                  # stage-1.md … stage-8.md, read at that stage
-│   ├── scripts/                     # ui_plan.py, localization_context.py, ui_guard.py (+ tests)
+│   ├── scripts/                     # ui_plan.py, localization_context.py, ui_guard.py,
+│   │                                #   manifest.py (+ tests)
 │   ├── templates/                   # PIPELINE, PIPELINE.local, UI_PLAN
 │   └── agents/openai.yaml           # OpenAI-style agent manifest
 ├── figma-feature-spec/              # stage 1 as a standalone skill
@@ -148,7 +149,7 @@ skills/
     └── scripts/                     # imageset generator, PNG canvas normalizer
 ```
 
-### The three scripts
+### The four scripts
 
 All read-only, stdlib-only CLIs — the skill calls them so the model never has to swallow raw data:
 
@@ -180,6 +181,19 @@ python3 skills/figma-full-cycle/scripts/ui_guard.py check \
 `path:line: RULE-ID: message` and nothing else, so reviewing a feature costs findings instead of a
 read of the diff. It is deliberately partial and prints with every run the rules it did **not**
 check — a clean run is only as wide as that note.
+
+```bash
+python3 skills/figma-full-cycle/scripts/manifest.py get \
+  --file docs/FEATURE_PIPELINE.md --section "Capability ledger" --section "Question log"
+
+python3 skills/figma-full-cycle/scripts/manifest.py verify-sources \
+  --file docs/FEATURE_PIPELINE.md --project-root .
+```
+
+`manifest.py` reads parts of the manifest instead of all of it — a filled one runs tens of kilobytes
+by stage 6 — and answers the question a resume actually has: `verify-sources` re-hashes the documents
+the UI convention contract was resolved from and reports per area `unchanged` / `CHANGED` /
+`unrecorded`, so an unchanged project costs one command instead of re-reading its documentation.
 
 ## Safety model
 
