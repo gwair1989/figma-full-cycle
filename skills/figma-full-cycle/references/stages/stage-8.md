@@ -1,0 +1,23 @@
+# Stage 8 — Final
+
+**Read before starting** (skip what the session already holds): the LAY-01…LAY-04, LAY-08, LAY-09 and COL-01…COL-05 rules being re-detected — [`../layout-adaptivity-contract.md`](../layout-adaptivity-contract.md), [`../colors-contract.md`](../colors-contract.md).
+
+## Role binding
+
+`code-review`; fix the findings.
+
+Then:
+
+- Re-run the LAY-01…LAY-04, LAY-08, LAY-09 and COL-01…COL-05 detections — or the project's color guard — over the changed files.
+- If UI or copy changed → targeted stages 5/6 and a repeated Strings key-level gate for the changed `copy_id` only.
+
+## Fallback
+
+No stack-specific reviewer → a generic review command, else the agent's built-in review path. **The stage is never skipped.**
+
+## Gate
+
+- Review clean.
+- No raw user-facing literals outside the allowed mechanism and no unexpected Strings keys.
+- Layout and color detections clean or waived.
+- Final clean checkpoint committed.
