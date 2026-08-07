@@ -30,7 +30,7 @@ Permitted statuses:
 
 ### Layout baseline
 
-- Read [`layout-adaptivity-contract.md`](layout-adaptivity-contract.md) in full and resolve the row from it: reference canvas, permitted design-to-runtime scaling API, smallest and largest supported device, supported orientations, and the layout patterns the project forbids.
+- Resolve the row from the project: reference canvas, permitted design-to-runtime scaling API, smallest and largest supported device, supported orientations, and the layout patterns the project forbids. The digest below is the baseline to map onto; [`layout-adaptivity-contract.md`](layout-adaptivity-contract.md) is read in full at stage 3, or here when this row cannot be resolved without it.
 - Documented layout rules outrank precedent in existing screens. A pattern that documentation marks legacy or forbids for new screens must not be copied, even when neighbouring screens use it; only genuinely ambiguous wording becomes a `conflict`.
 - The skill baseline is rules LAY-01…LAY-11: no fixed reference canvas with a global `scaleEffect`, no hard or derived screen-level frame sizes, no `position`/static `offset` as layout, positioning through `alignment` and spacing through `padding`, insets snapped to system values within an asymmetric −2…+4pt tolerance, the documented screen-container modifier order, and geometry arithmetic only with a written derivation.
 - A project rule may make the baseline more specific (its own scaling API, its own spacing scale); it may not reintroduce a pattern the baseline forbids without an explicit documented decision recorded in the manifest.
@@ -55,7 +55,7 @@ Permitted statuses:
 
 ### Colors baseline
 
-- Read [`colors-contract.md`](colors-contract.md) in full and resolve the row from it: palette mechanism and naming scheme, where the semantic layer lives, system/brand slots, appearance variants, the project's color guard and its exact invocation, and any literal allowlist.
+- Resolve the row from the project: palette mechanism and naming scheme, where the semantic layer lives, system/brand slots, appearance variants, the project's color guard and its exact invocation, and any literal allowlist. The digest below is the baseline to map onto; [`colors-contract.md`](colors-contract.md) is read in full at stage 3, or here when this row cannot be resolved without it.
 - The skill baseline is rules COL-01…COL-10: two layers with views referencing only the semantic one, one value per palette entry, a single naming scheme for the whole palette, no alpha in names, no inline color literals in any form, values taken from design context, appearance variants preserved, system slots not duplicated, a missing token raised as `conflict`, and a gate that is a real detection run.
 - A project rule may make the baseline more specific (its own naming scheme, its own guard, its own token locations); it may not reintroduce inline literals or a second color system without an explicit documented decision recorded in the manifest.
 - When an exact Figma color conflicts with a semantic token, prefer the resolved project convention and document the expected visual difference for stage 5.

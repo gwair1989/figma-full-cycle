@@ -1,6 +1,8 @@
 # Layout & Adaptivity Contract
 
-The sixth area of the project UI convention contract. Read it fully once during the `figma-full-cycle` preflight, before stage 3. The goal is to fix **which layout API** the feature is built with, so the screen adapts to every supported size by itself instead of being tuned with numbers for one device.
+The sixth area of the project UI convention contract. The goal is to fix **which layout API** the feature is built with, so the screen adapts to every supported size by itself instead of being tuned with numbers for one device.
+
+**Read it in full at the start of stage 3** — the stage that enforces LAY-01…LAY-10 — and keep it in session for stages 5, 6 and 8. The preflight audit does not read this file: it resolves the `Layout` row from the baseline digest in [`project-ui-conventions.md`](project-ui-conventions.md), and reads this contract early only when that row cannot be resolved without it.
 
 The area resolves with the same statuses as the others: `matched / project-specific / skill-fallback / inferred-from-code / conflict / not-applicable`.
 

@@ -1,6 +1,8 @@
 # Colors Contract
 
-The Colors area of the project UI convention contract. Read it fully once during the `figma-full-cycle` preflight, before stage 3. The goal is to fix **where a color value lives, what names it**, and **what a view is allowed to reference**, so a feature does not quietly grow a second palette.
+The Colors area of the project UI convention contract. The goal is to fix **where a color value lives, what names it**, and **what a view is allowed to reference**, so a feature does not quietly grow a second palette.
+
+**Read it in full at the start of stage 3** — the stage that enforces COL-01…COL-09 — and keep it in session for stages 5 and 8. The preflight audit does not read this file: it resolves the `Colors` row from the baseline digest in [`project-ui-conventions.md`](project-ui-conventions.md), and reads this contract early only when that row cannot be resolved without it.
 
 The area resolves with the same statuses as the others: `matched / project-specific / skill-fallback / inferred-from-code / conflict / not-applicable`.
 

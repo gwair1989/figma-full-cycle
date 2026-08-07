@@ -1,6 +1,8 @@
 # Strings Workflow: documentation-first and context-bounded
 
-Read in full when a feature touches user-visible copy, or when the Strings row of the audit is still unresolved. The goal is to follow the specific project's mechanism without loading whole `*.xcstrings`, `*.strings` or `*.stringsdict` files into context.
+The goal is to follow the specific project's mechanism without loading whole `*.xcstrings`, `*.strings` or `*.stringsdict` files into context.
+
+**Read it in full at the start of stage 1**, where the feature copy inventory is built, and keep it in session for stage 3 and the stage 8 re-check. Not at preflight, and not at all when the Strings row resolved `not-applicable`: the audit resolves that row from the Strings baseline digest in [`project-ui-conventions.md`](project-ui-conventions.md). Read it earlier only when the row cannot be resolved without it.
 
 ## Fixed rules
 

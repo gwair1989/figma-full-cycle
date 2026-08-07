@@ -22,6 +22,8 @@ The core is agent-neutral: tools and roles are named by capability. Concrete too
 
 **Preflight (once, before any change):** read the adapter, run the capability discovery sweep below, then the read-only UI convention audit, read [`references/figma-mcp-acquisition.md`](references/figma-mcp-acquisition.md) in full, and only then run the rest of the adapter's capability checklist end to end. Everything missing without a fallback goes out as a single blocker question listing all of it, not one at a time.
 
+Preflight reads exactly three references — the adapter, [`references/capability-discovery.md`](references/capability-discovery.md) and [`references/figma-mcp-acquisition.md`](references/figma-mcp-acquisition.md) — plus [`references/project-ui-conventions.md`](references/project-ui-conventions.md) for the audit. Every other reference belongs to a stage; see the context budget below.
+
 ## Capability discovery — before anything else
 
 The stages are named by **role**, not by tool name. Which concrete skill, MCP tool or plugin fills a role is decided at run time from what is actually installed: catalogs differ per machine, vendors ship new tools, users rename and namespace them.
@@ -47,7 +49,7 @@ The stages are named by **role**, not by tool name. Which concrete skill, MCP to
 
 Start order: read the adapter → capability discovery sweep → audit the project → read the Figma MCP acquisition contract → parse `fileKey`/`node-id` locally without a Figma call → Figma access probe (auth, then a real read on the parsed node) → the rest of the adapter capability preflight → the rest of the Figma link validation → worktree.
 
-1. Read [`references/project-ui-conventions.md`](references/project-ui-conventions.md) in full, then [`references/layout-adaptivity-contract.md`](references/layout-adaptivity-contract.md) and [`references/colors-contract.md`](references/colors-contract.md) in full. Unless Strings is objectively `not-applicable`, also read [`references/strings-workflow.md`](references/strings-workflow.md) in full before inspecting any localization file.
+1. Read [`references/project-ui-conventions.md`](references/project-ui-conventions.md) in full. It carries the audit procedure and a compact baseline digest per area — that is what resolving the six rows takes. The area contracts (`layout-adaptivity-contract.md`, `colors-contract.md`, `strings-workflow.md`) are **not** read here: each is read in full at the stage that enforces it. The exception is a row the digest cannot resolve — an ambiguous project rule, a suspected `conflict` — where that one contract is read now and the reason recorded.
 2. First find and read the project documentation for the six areas: **Layout & Adaptivity** (reference canvas, scaling API, supported devices, forbidden layout patterns), **Strings** (`String Catalog` / `Localizable.strings`), **Typography**, **Colors** (palette mechanism and naming scheme, semantic layer, system slots, project guard), **Images**, **Accessibility**. Then reconcile that documentation against the actual design-system APIs, localization files, asset catalogs and accessibility mechanisms; code is a fallback only where a rule is undocumented. For Accessibility, code and Figma do not by themselves activate scope: without an explicit requirement from documentation or the user, the baseline `no-add` applies.
 3. For Strings, first resolve format/catalog/table/bundle/API/key style/extraction/generated symbols/locales/translation ownership from documentation, then run a compact read-only inventory. The helper does not choose project policy.
 4. For each area, map the project's rule onto the skill's baseline and record exactly one outcome: `matched / project-specific / skill-fallback / inferred-from-code / conflict / not-applicable`.
@@ -57,6 +59,7 @@ Start order: read the adapter → capability discovery sweep → audit the proje
 
 ## Strings — frugal context protocol
 
+- [`references/strings-workflow.md`](references/strings-workflow.md) is read in full at stage 1, when the feature copy inventory is built — not at preflight, and not at all when the Strings row resolved `not-applicable`. The audit resolves the row from the Strings baseline digest in `project-ui-conventions.md`.
 - Never open or hand the model a whole `*.xcstrings`, all `*.strings`, or a full catalog diff. Use the read-only [`scripts/localization_context.py`](scripts/localization_context.py): one `inventory`, one batched `lookup`, and after implementation one key-level `diff` + `validate`.
 - At stage 1, build a single feature copy inventory across all screens: unique meaning, usages, kind/placeholders, translator context, resolved table/key/symbol and status. Repeated visual occurrences do not create repeated lookups or keys.
 - Implement strings in one batch following the mode from project documentation; do not run build/extraction/generation after every single string. Do not invent translations and do not fill every locale with source copy without an explicit project policy.
@@ -117,6 +120,24 @@ The full cycle is long — the main thread burns out if it reads everything inli
 | main thread | the only writer of the manifest; questions, gates, fixes, commits | everything else |
 
 A subagent's return is compact: `{screen, node, revision, evidence, findings, confidence, open_questions}`. For copy, only the assigned `copy_id` values and findings — never whole localization files. Serialize builds and fixes; keep fan-out bounded (2–3).
+
+### Context budget
+
+Context spent at preflight is spent for the whole run: it sits in every later message whether or not the feature ever reaches the stage that needed it. So a reference is read at the stage that enforces it, once, and not again.
+
+| Read | When |
+|------|------|
+| adapter, `capability-discovery.md`, `figma-mcp-acquisition.md` | preflight |
+| `project-ui-conventions.md` | preflight (the audit itself) |
+| `stages/stage-N.md` | start of stage N |
+| `ui-plan-contract.md` | stage 1 |
+| `strings-workflow.md` | stage 1, unless Strings is `not-applicable` |
+| `layout-adaptivity-contract.md`, `colors-contract.md` | stage 3; still in session for 5, 6, 8 |
+| `pitfalls.md` (one group) | when a gate in that area comes back dirty |
+
+Exceptions are allowed and cheap — an audit row the baseline digest cannot resolve, a gate failure whose rule text is needed early. Take them deliberately and record the reason; what is forbidden is loading everything up front "to be safe".
+
+Raw payloads are the other half of the budget: Figma responses, catalogs, build logs and screenshots go to disk or into a subagent, and only the derived rows and evidence records come back.
 
 ## Question protocol (all stages)
 
