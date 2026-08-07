@@ -96,6 +96,20 @@ versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- LAY-01 stopped inventing canvases. Three faults, all found by the third run on real code: the
+  "provably smaller" exoneration demanded *both* sides resolve, so any adaptive width computed from
+  live geometry made a 280pt-tall card look like an artboard; the scaleEffect and the frame were
+  paired anywhere in the file, so a `ButtonStyle` and a card two declarations away became one screen;
+  and the factor was never checked, so `isPressed ? 0.97 : 1` — the exact shape LAY-09 had already
+  learned to skip — counted as scaling. Now: one readable small side disproves a canvas, the pair
+  must share a type body, and only a static factor qualifies.
+- The composition marker's reach ended at the first line of a multi-line call, so a block whose own
+  `.frame(...)` spanned lines lost the modifiers after it — 9 findings suppressed when written on
+  one line, 6 when written across four.
+- A `typealias` now resolves to the type it names. Two neighbouring files with the same fixed canvas
+  reported 9 findings and 1, purely because one spelled the type out and the other used
+  `private typealias Layout = …`.
+- Resolved values print with enough digits to match the declaration; 578.2218 was shown as 578.222.
 - A qualified constant reference no longer borrows an unrelated one. With a single table for the
   whole run, `Multi.canvas.height` matched a bare `height` declared in another type entirely — a
   wrong number printed in a finding, and a wrong number deciding whether a frame was smaller than

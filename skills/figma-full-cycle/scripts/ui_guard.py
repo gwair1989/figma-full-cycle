@@ -92,6 +92,12 @@ CONSTANT_RE = re.compile(
     r"(?:^|[{;]\s*)(?:public\s+|private\s+|internal\s+|fileprivate\s+|open\s+)*"
     r"(?:static\s+)?(?:let|var)\s+(\w+)\s*(?::\s*[^=]+?)?\s*=\s*(.+)$"
 )
+# `private typealias Layout = AddPetFormLayout` — a project shortening a long
+# type name still means that type's constants.
+TYPEALIAS_RE = re.compile(
+    r"(?:^|[{;]\s*)(?:public\s+|private\s+|internal\s+|fileprivate\s+)*"
+    r"typealias\s+(\w+)\s*=\s*([\w.]+)\s*$"
+)
 TYPE_RE = re.compile(
     r"^(?:public\s+|private\s+|internal\s+|fileprivate\s+|open\s+|final\s+)*"
     r"(?:enum|struct|class|extension)\s+(\w+)"
@@ -299,6 +305,16 @@ def trim_declaration(value: str) -> str:
     return text
 
 
+def collect_aliases(code_lines: Sequence[str]) -> Dict[str, str]:
+    """`typealias Short = Long.Name`, so `Short.width` finds `Long.Name.width`."""
+    aliases: Dict[str, str] = {}
+    for line in code_lines:
+        match = TYPEALIAS_RE.search(line.strip())
+        if match and match.group(1) != match.group(2):
+            aliases[match.group(1)] = match.group(2)
+    return aliases
+
+
 def collect_constants(code_lines: Sequence[str]) -> Dict[str, str]:
     """Named numeric constants declared in a file, qualified by their type.
 
@@ -345,6 +361,13 @@ def collect_constants(code_lines: Sequence[str]) -> Dict[str, str]:
 
     for name in ambiguous:
         constants.pop(name, None)
+
+    # Record every aliased spelling too: the lookup matches names, and
+    # `Layout.width` is the same declaration as `AddPetFormLayout.width`.
+    for short, full in collect_aliases(code_lines).items():
+        for key in list(constants):
+            if key.startswith(full + "."):
+                constants.setdefault(short + key[len(full):], constants[key])
     return constants
 
 
@@ -451,6 +474,40 @@ def build_chains(code_lines: Sequence[str]) -> List[Chain]:
     return chains
 
 
+def type_regions(code_lines: Sequence[str]) -> List[Tuple[int, int]]:
+    """Line ranges of each type body.
+
+    A `.scaleEffect` in a ButtonStyle and a pinned frame in the card below it are
+    not the same screen; pairing them across the file invented a fixed canvas
+    out of two unrelated declarations.
+    """
+    regions: List[Tuple[int, int]] = []
+    for index, line in enumerate(code_lines):
+        stripped = line.strip()
+        if not TYPE_RE.match(stripped) or "{" not in stripped:
+            continue
+        depth = 0
+        end = index + 1
+        for cursor in range(index, len(code_lines)):
+            text = code_lines[cursor]
+            depth += text.count("{") - text.count("}")
+            end = cursor + 1
+            if depth <= 0:
+                break
+        regions.append((index + 1, end))
+    return regions
+
+
+def same_region(regions: Sequence[Tuple[int, int]], left: int, right: int) -> bool:
+    """Do two lines sit in the same innermost type body?"""
+
+    def innermost(line: int) -> Optional[Tuple[int, int]]:
+        covering = [region for region in regions if region[0] <= line <= region[1]]
+        return max(covering, key=lambda region: region[0]) if covering else None
+
+    return innermost(left) == innermost(right)
+
+
 def composition_regions(raw_lines: Sequence[str], code_lines: Sequence[str]) -> List[Composition]:
     """Blocks opened by a `// ui-guard: composition …` comment.
 
@@ -484,9 +541,15 @@ def composition_regions(raw_lines: Sequence[str], code_lines: Sequence[str]) -> 
 
         # The modifiers chained onto the block belong to it — including the
         # `.frame(...)` that declares its size, which is what the screen-sized
-        # check has to see.
+        # check has to see. A modifier written across several lines keeps the
+        # chain going: stopping at its first line dropped the rest of the block.
         cursor = end
-        while cursor < len(code_lines) and code_lines[cursor].lstrip().startswith("."):
+        pending = 0
+        while cursor < len(code_lines):
+            text = code_lines[cursor]
+            if pending <= 0 and not text.lstrip().startswith("."):
+                break
+            pending += text.count("(") - text.count(")")
             end = cursor + 1
             cursor += 1
 
@@ -563,14 +626,24 @@ def numeric(value: str) -> Optional[float]:
 # --------------------------------------------------------------------------
 
 
+def format_number(number: float) -> str:
+    """Enough digits to match the declaration.
+
+    `%g` rounds to six significant figures, so a declared 578.2218 printed as
+    578.222 — cosmetic in a table, but it invites doubt about the value the
+    thresholds actually used.
+    """
+    return "{:.12g}".format(number)
+
+
 def describe(value: str, number: Optional[float]) -> str:
     """`K.w` alone is unreadable in a finding; `K.w = 393` is actionable."""
     text = value.strip()
     if number is None:
         return text
     if numeric(text) is not None:
-        return "{:g}".format(number)
-    return "{} = {:g}".format(text, number)
+        return format_number(number)
+    return "{} = {}".format(text, format_number(number))
 
 
 def fixed_extent(value: Optional[str]) -> bool:
@@ -591,17 +664,21 @@ def provably_smaller_than_screen(
     *both* dimensions to be small would reject it, and a bare `>= 300` threshold
     rejects anything near the full width of a phone.
 
-    Unknown sizes are never "provably" anything: an unresolved frame is treated
-    as the screen, so a value the resolver cannot read fails closed.
+    One readable side is enough to disprove a canvas: a screen is large in
+    *both* dimensions, so a frame 280pt tall on an 852pt canvas is content
+    whether or not its width can be read. Demanding both sides made every
+    adaptive width — a value computed from live geometry — look like an artboard.
+
+    With nothing readable at all it is never "provably" anything: an unresolved
+    frame is treated as the screen, so a form the resolver cannot read fails
+    closed.
     """
-    if width is None or height is None:
-        return False
-    if canvas:
-        canvas_width, canvas_height = canvas
-        return (
-            width <= canvas_width * ARTWORK_RATIO or height <= canvas_height * ARTWORK_RATIO
-        )
-    return width < SCREEN_LEVEL_PT and height < SCREEN_LEVEL_PT
+    limits = canvas if canvas else (SCREEN_LEVEL_PT, SCREEN_LEVEL_PT)
+    ratio = ARTWORK_RATIO if canvas else 1.0
+    return any(
+        value is not None and value <= limit * ratio
+        for value, limit in ((width, limits[0]), (height, limits[1]))
+    )
 
 
 def check_layout(
@@ -621,6 +698,7 @@ def check_layout(
     # what artwork is made of. They are decided after the canvas frames are
     # known, so a composition can be refused before it exempts anything.
     geometry: List[Finding] = []
+    static_scales: List[int] = []
 
     for chain in source.chains:
         text = chain.text
@@ -731,11 +809,15 @@ def check_layout(
             )
 
         scale = re.search(r"\.scaleEffect\s*\(", text)
-        if scale and source.has_text_views():
+        if scale:
             factor = balanced_args(text, scale.end() - 1)
             # A factor driven by state is the animation the rule allows; a
-            # static one is scaling used as an adaptation mechanism.
-            if not CONDITIONAL_RE.search(factor) and not ANIMATION_RE.search(factor):
+            # static one is scaling used as an adaptation mechanism. LAY-01
+            # needs the same distinction — press feedback is not an artboard fit.
+            static_factor = not CONDITIONAL_RE.search(factor) and not ANIMATION_RE.search(factor)
+            if static_factor:
+                static_scales.append(chain.line_at(scale.start()))
+            if static_factor and source.has_text_views():
                 findings.append(
                     Finding(
                         source.display,
@@ -774,21 +856,25 @@ def check_layout(
         else:
             source.composition_hits.append((covering.name, finding.line))
 
-    scale_lines = [
-        number for number, text in enumerate(source.code_lines, start=1) if ".scaleEffect(" in text
-    ]
-    if scale_lines and canvas_frames:
-        frame_line, dimensions = canvas_frames[0]
+    regions = type_regions(source.code_lines)
+    for scale_line in static_scales:
+        pair = next(
+            (item for item in canvas_frames if same_region(regions, scale_line, item[0])), None
+        )
+        if pair is None:
+            continue
+        frame_line, dimensions = pair
         findings.append(
             Finding(
                 source.display,
-                scale_lines[0],
+                scale_line,
                 "LAY-01",
                 "scaleEffect over a pinned {} frame (line {}) — an aspect-fit of the artboard, not adaptation".format(
                     dimensions, frame_line
                 ),
             )
         )
+        break
 
     for number, text in enumerate(source.code_lines, start=1):
         if not GEOMETRY_RE.search(text) or not ARITHMETIC_RE.search(text):
@@ -1216,7 +1302,7 @@ def run_constants(args: argparse.Namespace) -> int:
         if "." not in name and any(key.endswith("." + name) for key in table):
             continue  # the bare alias of a qualified entry, not a second constant
         number = resolve_number(name, table)
-        rows.append((name, table[name], "—" if number is None else "{:g}".format(number)))
+        rows.append((name, table[name], "—" if number is None else format_number(number)))
 
     if args.format == "json":
         print(

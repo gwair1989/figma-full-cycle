@@ -471,6 +471,112 @@ class TestCanvasResolution(GuardTestCase):
         self.assertNotIn("LAY-01", rules)
 
 
+class TestCanvasPairing(GuardTestCase):
+    """LAY-01 needs a scaleEffect and a canvas frame that belong to the same
+    screen. Pairing anything with anything invented artboards out of unrelated
+    declarations — and called a 65pt-tall card an aspect fit."""
+
+    def test_one_small_side_is_enough_to_disprove_a_canvas(self) -> None:
+        # A screen is large in both dimensions, so a readable 280 of 852 settles
+        # it even when the width is computed from live geometry.
+        rules = self.rules_for(
+            "struct Card: View {\n"
+            "    var cardWidth: CGFloat { geo.size.width - 40 }\n"
+            "    var body: some View {\n"
+            '        Text("x")\n'
+            "            .frame(width: cardWidth, height: 280)\n"
+            "            .scaleEffect(0.9)\n"
+            "    }\n"
+            "}\n",
+            "--reference-canvas",
+            "393x852",
+        )
+
+        self.assertNotIn("LAY-01", rules)
+
+    def test_a_frame_in_another_type_is_not_this_view_s_canvas(self) -> None:
+        rules = self.rules_for(
+            "struct CardButtonStyle: ButtonStyle {\n"
+            "    func makeBody(configuration: Configuration) -> some View {\n"
+            "        configuration.label.scaleEffect(0.97)\n"
+            "    }\n"
+            "}\n"
+            "struct Card: View {\n"
+            "    var body: some View {\n"
+            '        Text("hello").frame(width: 393, height: 852)\n'
+            "    }\n"
+            "}\n",
+            "--reference-canvas",
+            "393x852",
+        )
+
+        self.assertNotIn("LAY-01", rules)
+
+    def test_press_feedback_is_not_an_artboard_fit(self) -> None:
+        rules = self.rules_for(
+            "struct Card: View {\n"
+            "    var body: some View {\n"
+            '        Text("hello")\n'
+            "            .frame(width: 393, height: 852)\n"
+            "            .scaleEffect(configuration.isPressed ? 0.97 : 1)\n"
+            "    }\n"
+            "}\n",
+            "--reference-canvas",
+            "393x852",
+        )
+
+        self.assertNotIn("LAY-01", rules)
+
+    def test_the_canonical_case_still_fires(self) -> None:
+        rules = self.rules_for(
+            "enum GeometryData {\n"
+            "    static let referenceCanvasSize = CGSize(width: 393, height: 852)\n"
+            "}\n"
+            "enum OnboardingLayout {\n"
+            "    static let width = GeometryData.referenceCanvasSize.width\n"
+            "    static let height = GeometryData.referenceCanvasSize.height\n"
+            "}\n"
+            "struct OnboardingView: View {\n"
+            "    var body: some View {\n"
+            '        Text("Welcome")\n'
+            "            .frame(width: OnboardingLayout.width, height: OnboardingLayout.height)\n"
+            "            .scaleEffect(canvasScale)\n"
+            "    }\n"
+            "}\n",
+            "--reference-canvas",
+            "393x852",
+        )
+
+        self.assertIn("LAY-01", rules)
+
+    def test_a_type_alias_resolves_to_the_type_it_names(self) -> None:
+        rules = self.rules_for(
+            "enum AddPetFormLayout {\n"
+            "    static let width: CGFloat = 393\n"
+            "    static let height: CGFloat = 852\n"
+            "}\n"
+            "struct AddPetFormView: View {\n"
+            "    private typealias Layout = AddPetFormLayout\n"
+            "    var body: some View {\n"
+            '        Text("x")\n'
+            "            .frame(width: Layout.width, height: Layout.height)\n"
+            "            .scaleEffect(scale)\n"
+            "    }\n"
+            "}\n",
+            "--reference-canvas",
+            "393x852",
+        )
+
+        self.assertIn("LAY-01", rules)
+        self.assertIn("LAY-03", rules)
+
+    def test_a_resolved_value_keeps_the_declared_precision(self) -> None:
+        self.write("View.swift", "enum S { static let w: CGFloat = 578.2218 }\n")
+        result = run_cli("constants", "--project-root", str(self.root), "View.swift")
+
+        self.assertIn("578.2218", result.stdout)
+
+
 class TestFindingAnchoring(GuardTestCase):
     """A finding must land on the line carrying the modifier: anchoring at the
     chain start put waivers out of reach and moved when a comment was added."""
@@ -698,6 +804,28 @@ class TestCompositions(GuardTestCase):
             "393x852",
         )
 
+        self.assertNotIn("LAY-03", rules)
+
+    def test_coverage_survives_a_multi_line_frame(self) -> None:
+        # The block's own frame written across lines used to end the marker's
+        # reach, so the modifiers after it started reporting again.
+        rules = self.rules_for(
+            "struct A: View { var body: some View {\n"
+            "    // ui-guard: composition Art — 381x373 cluster\n"
+            "    ZStack {\n"
+            '        Image("v").offset(x: -141.5)\n'
+            "    }\n"
+            "    .frame(\n"
+            "        width: 381,\n"
+            "        height: 373\n"
+            "    )\n"
+            "    .offset(x: 8, y: 4)\n"
+            "} }\n",
+            "--reference-canvas",
+            "393x852",
+        )
+
+        self.assertNotIn("LAY-04", rules)
         self.assertNotIn("LAY-03", rules)
 
     def test_a_marker_that_exempts_nothing_says_so(self) -> None:
