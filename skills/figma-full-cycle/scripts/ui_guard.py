@@ -120,6 +120,21 @@ SIZE_LITERAL_RE = re.compile(
 # `.scaleEffect(configuration.isPressed ? 0.97 : 1)` is the animation case the
 # rule explicitly permits, not an adaptation mechanism.
 CONDITIONAL_RE = re.compile(r"\?.*:|==|!=|>=|<=|[<>]")
+# `@State private var scrollOffset` — a property the runtime rewrites, and the
+# root of the other animation shape: a value driven per frame, without a ternary
+# or an animation keyword anywhere in the expression to announce it.
+STATE_WRAPPER_RE = re.compile(
+    r"@(?:State|Binding|GestureState|FocusState|ObservedObject|StateObject|"
+    r"EnvironmentObject|Environment|Published|Bindable|AppStorage|SceneStorage)\b"
+)
+PROPERTY_NAME_RE = re.compile(r"\b(?:var|let)\s+(\w+)")
+# `private var avatarProgress: CGFloat {` — the head of a computed property,
+# read for what its body depends on rather than for a number.
+COMPUTED_HEAD_RE = re.compile(
+    r"^(?:public\s+|private\s+|internal\s+|fileprivate\s+|open\s+)*"
+    r"(?:static\s+)?var\s+(\w+)\s*:\s*[\w<>\[\], ?]+\s*\{"
+)
+IDENTIFIER_RE = re.compile(r"[A-Za-z_]\w*")
 STRING_RE = re.compile(r'"(?:\\.|[^"\\])*"')
 HEX_STRING_RE = re.compile(r'"\s*#?[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?\s*"')
 ARITHMETIC_RE = re.compile(r"[\w.)\]]\s*[-+*/]\s*[\w.(]")
@@ -257,9 +272,14 @@ class SourceFile:
         self.compositions = composition_regions(self.raw_lines, self.code_lines)
         self.composition_hits: List[Tuple[str, int]] = []
         self.refused_compositions: List[str] = []
+        self.state_driven = state_driven_names(self.code_lines)
 
     def has_text_views(self) -> bool:
         return any(re.search(r"\bText\s*\(", line) for line in self.code_lines)
+
+    def driven_by_state(self, expression: str) -> bool:
+        """Does the expression read a value the runtime rewrites?"""
+        return bool(self.state_driven & set(IDENTIFIER_RE.findall(expression)))
 
 
 def strip_noncode(line: str) -> str:
@@ -505,6 +525,57 @@ def type_regions(code_lines: Sequence[str]) -> List[Tuple[int, int]]:
                 break
         regions.append((index + 1, end))
     return regions
+
+
+def state_driven_names(code_lines: Sequence[str]) -> set:
+    """Properties the runtime rewrites, plus everything computed from them.
+
+    LAY-09 permits the animation case, and a collapsing header is the ordinary
+    shape of it: `@State scrollOffset` feeds a computed `avatarProgress`, which
+    feeds `.scaleEffect(1 - avatarProgress * 0.2)`. That expression carries no
+    ternary and no animation keyword, so the keyword tests read a value that
+    changes on every frame of a scroll as a constant. Following the declaration
+    answers what those keywords were guessing at.
+
+    Only names that are actually declared count, so an unknown symbol stays
+    static and the rule keeps failing closed: `.scaleEffect(canvasScale)` over
+    text is a finding exactly as before.
+    """
+    roots = set()
+    for line in code_lines:
+        if not STATE_WRAPPER_RE.search(line):
+            continue
+        name = PROPERTY_NAME_RE.search(line)
+        if name:
+            roots.add(name.group(1))
+
+    bodies: List[Tuple[str, str]] = []
+    for index, line in enumerate(code_lines):
+        head = COMPUTED_HEAD_RE.match(line.strip())
+        if not head:
+            continue
+        depth = 0
+        parts: List[str] = []
+        for cursor in range(index, len(code_lines)):
+            text = code_lines[cursor]
+            parts.append(text)
+            depth += text.count("{") - text.count("}")
+            if depth <= 0:
+                break
+        bodies.append((head.group(1), " ".join(parts)))
+
+    driven = set(roots)
+    for _ in range(len(bodies) + 1):
+        grown = False
+        for name, body in bodies:
+            if name in driven:
+                continue
+            if driven & set(IDENTIFIER_RE.findall(body)):
+                driven.add(name)
+                grown = True
+        if not grown:
+            break
+    return driven
 
 
 def same_region(regions: Sequence[Tuple[int, int]], left: int, right: int) -> bool:
@@ -830,7 +901,16 @@ def check_layout(
             # A factor driven by state is the animation the rule allows; a
             # static one is scaling used as an adaptation mechanism. LAY-01
             # needs the same distinction — press feedback is not an artboard fit.
-            static_factor = not CONDITIONAL_RE.search(factor) and not ANIMATION_RE.search(factor)
+            # State arrives in two shapes: announced by a ternary or an
+            # animation keyword, or silently, through a property the runtime
+            # rewrites. Reading only the first shape reported every collapsing
+            # header, whose factor is a per-frame scroll value spelled as plain
+            # arithmetic.
+            static_factor = (
+                not CONDITIONAL_RE.search(factor)
+                and not ANIMATION_RE.search(factor)
+                and not source.driven_by_state(factor)
+            )
             if static_factor:
                 static_scales.append(chain.line_at(scale.start()))
             if static_factor and source.has_text_views():

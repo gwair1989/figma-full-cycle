@@ -755,6 +755,73 @@ class TestScaleEffectScope(GuardTestCase):
 
         self.assertNotIn("LAY-09", rules)
 
+    COLLAPSING_HEADER = (
+        "struct ProfileView: View {\n"
+        "    @State private var scrollOffset: CGFloat = 0\n"
+        "\n"
+        "    private var avatarProgress: CGFloat {\n"
+        "        min(max(scrollOffset, 0) / 70, 1)\n"
+        "    }\n"
+        "\n"
+        "    var body: some View {\n"
+        "        VStack {\n"
+        '            Text("Pinned title")\n'
+        '            Image("avatar")\n'
+        "                .scaleEffect(1 - avatarProgress * 0.2)\n"
+        "        }\n"
+        "    }\n"
+        "}\n"
+    )
+
+    def test_a_scroll_driven_collapse_is_not_a_finding(self) -> None:
+        # The other shape of the animation case: no ternary, no animation
+        # keyword, just a per-frame value spelled as arithmetic. Reading only
+        # the keywords reported every collapsing header in the project.
+        rules = self.rules_for(self.COLLAPSING_HEADER)
+
+        self.assertNotIn("LAY-09", rules)
+
+    def test_a_state_property_used_directly_is_not_a_finding(self) -> None:
+        rules = self.rules_for(
+            "struct V: View {\n"
+            "    @GestureState private var pinch: CGFloat = 1\n"
+            '    var body: some View { Text("x").scaleEffect(pinch) }\n'
+            "}\n"
+        )
+
+        self.assertNotIn("LAY-09", rules)
+
+    def test_a_static_factor_next_to_state_is_still_a_finding(self) -> None:
+        # The exemption follows the factor, not the file: a view that happens to
+        # own state does not get to scale its text by a constant.
+        rules = self.rules_for(
+            "struct V: View {\n"
+            "    @State private var scrollOffset: CGFloat = 0\n"
+            '    var body: some View { Text("x").scaleEffect(0.8) }\n'
+            "}\n"
+        )
+
+        self.assertIn("LAY-09", rules)
+
+    def test_the_artboard_aspect_fit_over_text_is_still_a_finding(self) -> None:
+        # Geometry is not state. This factor resolves to no number either, so a
+        # resolvability test would have gone blind on the exact expression the
+        # contract writes LAY-01 and FAIL-01 from.
+        rules = self.rules_for(
+            "struct V: View { var body: some View {\n"
+            "    GeometryReader { proxy in\n"
+            '        Text("x")\n'
+            "            .frame(width: 393, height: 852)\n"
+            "            .scaleEffect(min(proxy.size.width / 393, proxy.size.height / 852))\n"
+            "    }\n"
+            "} }\n",
+            "--reference-canvas",
+            "393x852",
+        )
+
+        self.assertIn("LAY-09", rules)
+        self.assertIn("LAY-01", rules)
+
 
 class TestCompositions(GuardTestCase):
     """Fixed-size artwork places its elements against each other, not against the

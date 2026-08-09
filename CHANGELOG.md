@@ -197,6 +197,17 @@ versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - LAY-09 no longer fires on every `scaleEffect` in a file that happens to contain `Text`. A factor
   driven by state — `configuration.isPressed ? 0.97 : 1` and the like — is the animation the rule
   permits; press feedback in a `ButtonStyle` was a guaranteed false positive.
+- "Driven by state" now includes the shape that does not announce itself. The previous test read the
+  expression for a ternary, a comparison or an animation keyword, which misses the collapsing header:
+  `.scaleEffect(1 - avatarProgress * 0.2)`, where `avatarProgress` derives from an `@State` scroll
+  offset written on every frame by `.onScrollGeometryChange`, is plain arithmetic and read as a
+  constant. The guard now follows the factor to its declaration — a property carrying `@State`,
+  `@Binding`, `@GestureState`, an observed store and the rest, reached through however many computed
+  properties — and treats it as the animation LAY-09 permits. Two false positives in PetCare, both on
+  the same idiom copied between screens; the neighbouring `.offset(y: -avatarProgress * 24)` had
+  always been silent, because LAY-04 asks what the value resolves to rather than what keywords it
+  contains. A symbol that is never declared as state stays static, so `.scaleEffect(canvasScale)` and
+  `min(w / 393, h / 852)` over text remain findings and LAY-01 is untouched.
 
 ### Changed
 
