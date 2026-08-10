@@ -67,7 +67,7 @@ Statuses: `ready / degraded / fallback / blocked / stale`. A stage does not star
 
 | Area | Project sources (`path#section @ digest`) | Project rule | Skill baseline | Resolved decision | Status |
 |------|------------------------------------------|--------------|----------------|-------------------|--------|
-| Layout | | | `references/layout-adaptivity-contract.md` (LAY-01…LAY-11) | `<reference canvas; scaling API; smallest/largest device; orientations; patterns the project forbids>` | `todo` |
+| Layout | | | `references/layout-adaptivity-contract.md` (LAY-01…LAY-13) | `<reference canvas; scaling API; smallest/largest device; orientations; patterns the project forbids>` | `todo` |
 | Strings | | | `references/project-ui-conventions.md#strings-baseline` | | `todo` |
 | Typography | | | `references/project-ui-conventions.md#typography-baseline` | | `todo` |
 | Colors | | | `references/colors-contract.md` (COL-01…COL-10) | `<palette mechanism + naming scheme; semantic layer location; system slots; appearance variants; project guard invocation; literal allowlist>` | `todo` |
@@ -195,7 +195,7 @@ The commit subject in the table is the **actual** one from git; one stage = one 
 > Run: `<exact command>` — the project's guard, or `python3 <skill-root>/scripts/ui_guard.py check --project-root . --changed-since <BASE_SHA> --reference-canvas <W>x<H> --asset-catalog <path>`
 > Result: `<UI_GUARD_CLEAN / UI_GUARD_DIRTY>` at `<TS>`, `<n>` findings, `<n>` waived, `<n>` files scanned
 >
-> The shipped guard fills LAY-01…LAY-04, LAY-08, LAY-09, LAY-10, COL-01, COL-02, COL-04 and COL-05 — and only with the flags those rules need (`--reference-canvas`, `--asset-catalog`, `--palette-symbol`, `--semantic-layer`). LAY-07 and COL-03 are reviewer rows in every run; leaving them `todo` leaves the gate open.
+> The shipped guard fills LAY-01…LAY-04, LAY-08…LAY-10, LAY-12, LAY-13, COL-01, COL-02, COL-04 and COL-05 — and only with the flags those rules need (`--reference-canvas`, `--asset-catalog`, `--palette-symbol`, `--semantic-layer`). LAY-07, LAY-11 and COL-03 are reviewer rows in every run; leaving them `todo` leaves the gate open.
 
 | Rule | Detection | Result (hits / clean) | Status |
 |------|-----------|-----------------------|--------|
@@ -207,6 +207,9 @@ The commit subject in the table is the **actual** one from git; one stage = one 
 | LAY-08 container modifier order | `.background(` before `.frame(maxWidth: .infinity`; `.ignoresSafeArea()` on a content container | | `todo` |
 | LAY-09 `scaleEffect` over text | a **static** `.scaleEffect(` factor in a file with `Text`; state-driven factors are the permitted animation case | | `todo` |
 | LAY-10 undocumented geometry arithmetic | `safeAreaInsets`/`geo.` in the view layer without a derivation comment | | `todo` |
+| LAY-11 adaptivity evidence | smallest/largest screenshots, home-indicator variants, and declared edge-inset relations | | `todo` |
+| LAY-12 app-owned screen mask | rounded clip/corner modifier on a screen-sized or two-axis stretched chain | | `todo` |
+| LAY-13 overflow artwork sizing a stack | image larger than reference canvas without a later local screen bound and clip | | `todo` |
 | COL-01 palette referenced from a view | a palette symbol used outside the files that own the semantic layer | | `todo` |
 | COL-02 duplicate palette entry | two palette entries with equal components | | `todo` |
 | COL-03 mixed naming schemes | palette entry names that do not follow the one resolved scheme | | `todo` |
@@ -217,7 +220,7 @@ Statuses: `todo / clean / hits / fixed / waived`. A clean run of a project guard
 
 ## Adaptivity matrix (stage 6)
 
-One row per combination. The set comes from the deployment target, the spec, and the Layout, Strings, Typography and Accessibility contracts. Layout (LAY-11) makes these mandatory: the smallest supported device, the largest, and devices both with and without a home indicator (different bottom safe area). Per device the evidence explicitly states that the layout fits the screen, that there is no unintended letterboxing, no clipped content, and that the background reaches the edges. Then the remaining axes: smallest + largest screen; light/dark; permitted content sizes; supported locales and directions and long copy; orientations if supported; keyboard and safe area. Add AX/VoiceOver/Reduce Motion/increased contrast and other accessibility-only rows only when Accessibility scope is explicitly active; the `no-add` baseline does not create them.
+One row per combination. The set comes from the deployment target, the spec, and the Layout, Strings, Typography and Accessibility contracts. Layout (LAY-11) makes these mandatory: the smallest supported device, the largest, and devices both with and without a home indicator (different bottom safe area). Per device the evidence explicitly states that the layout fits the screen, that there is no unintended letterboxing, no clipped content, and that the background reaches the edges. On the smallest and largest device it also records the UI Plan's relational edge invariants (for example equal left/right/bottom insets, within 1pt) and confirms that the root uses the system-provided presentation shape. Then the remaining axes: smallest + largest screen; light/dark; permitted content sizes; supported locales and directions and long copy; orientations if supported; keyboard and safe area. Add AX/VoiceOver/Reduce Motion/increased contrast and other accessibility-only rows only when Accessibility scope is explicitly active; the `no-add` baseline does not create them.
 
 > Mechanical pass: `python3 <skill-root>/scripts/screenshot_diff.py batch --plan <matrix.json> --out <report>`
 > Result: `<SCREENSHOT_DIFF_CLEAN / SCREENSHOT_DIFF_DIRTY>` at `<TS>`, `<n>` rows, `<n>` failed, report `<path>`
@@ -248,7 +251,7 @@ Statuses: `open` / `answered` / `resolved-from-docs` (name where it was found: s
 |--------|--------|--------------------------------------------|----------------|------------------|----------|--------|
 | | `<report path of the bound visual-comparison tool>/<FEATURE>/...` | `<393×852 + 375×667>` | `<pass / fail / not-run>` | `<which pair, and why that one>` | | |
 
-A screen is not comparable while only the reference size is covered. An inset divergence inside the LAY-07 snap window (−2…+4pt) is a match, not a ❌.
+A screen is not comparable while only the reference size is covered. An inset divergence inside the LAY-07 snap window (−2…+4pt) is a match, not a ❌. The outer device-frame radius is ignored unless the project explicitly owns that shape; equal-edge inset relations are checked on the non-reference size.
 
 `Looked at by eye` is never empty: `screenshot_diff.py` reports geometry, so a screen whose rows all passed mechanically has still not been compared to its design. One pair per screen is the floor, and every failing pair is on top of that.
 

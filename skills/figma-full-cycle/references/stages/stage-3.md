@@ -1,6 +1,6 @@
 # Stage 3 — UI implementation + architecture skeleton
 
-**Read before starting** (skip what the session already holds): [`../layout-adaptivity-contract.md`](../layout-adaptivity-contract.md) and [`../colors-contract.md`](../colors-contract.md) in full — this is the stage that enforces LAY-01…LAY-10 and COL-01…COL-09.
+**Read before starting** (skip what the session already holds): [`../layout-adaptivity-contract.md`](../layout-adaptivity-contract.md) and [`../colors-contract.md`](../colors-contract.md) in full — this is the stage that enforces LAY-01…LAY-13 and COL-01…COL-09.
 
 ## Role binding
 
@@ -17,7 +17,7 @@ Per area:
 - **Typography** — only through the project's resolved contract.
 - **Accessibility** — only on an explicit requirement.
 - **Colors** — the resolved Colors contract and rules COL-01…COL-09: the view references a semantic token, never a palette entry or an inline literal in any form, and a value with no token is a question, not an improvisation.
-- **Layout** — the resolved Layout contract and rules LAY-01…LAY-10: native flexible layout, never a fixed reference canvas with a global `scaleEffect`, never absolute `position`/static `offset` as layout, however the design-to-code output arrives.
+- **Layout** — the resolved Layout contract and rules LAY-01…LAY-13: native flexible layout, no fixed reference canvas/global scale, no static offset layout, no screen-sized rounded mask, and no overflow artwork sizing the root stack, however the design-to-code output arrives.
 
 ## Fallback
 
@@ -32,7 +32,7 @@ Per area:
 - Build succeeds.
 - Every screen and state is `done`.
 - No resolved UI convention bypassed.
-- LAY-01…LAY-10 and COL-01…COL-05 detections run over the feature's changed files — or the project's own color guard with its documented invocation — and come back clean or waived in the manifest:
+- LAY-01…LAY-13 and COL-01…COL-05 detections run over the feature's changed files — or the project's own color guard with its documented invocation — and come back clean or waived in the manifest:
 
   ```bash
   python3 <skill-root>/scripts/ui_guard.py check --project-root . --changed-since <BASE_SHA> --reference-canvas <W>x<H> --asset-catalog <path/to/Assets.xcassets>

@@ -1,6 +1,6 @@
 # Stage 8 — Final
 
-**Read before starting** (skip what the session already holds): the LAY-01…LAY-04, LAY-08, LAY-09 and COL-01…COL-05 rules being re-detected — [`../layout-adaptivity-contract.md`](../layout-adaptivity-contract.md), [`../colors-contract.md`](../colors-contract.md).
+**Read before starting** (skip what the session already holds): the LAY-01…LAY-04, LAY-08…LAY-10, LAY-12, LAY-13 and COL-01…COL-05 rules being re-detected — [`../layout-adaptivity-contract.md`](../layout-adaptivity-contract.md), [`../colors-contract.md`](../colors-contract.md).
 
 ## Role binding
 
@@ -8,7 +8,7 @@
 
 Then:
 
-- Re-run the LAY-01…LAY-04, LAY-08, LAY-09 and COL-01…COL-05 detections — or the project's color guard — over the changed files, with the same invocation stage 3 recorded:
+- Re-run the LAY-01…LAY-04, LAY-08…LAY-10, LAY-12, LAY-13 and COL-01…COL-05 detections — or the project's color guard — over the changed files, with the same invocation stage 3 recorded:
 
   ```bash
   python3 <skill-root>/scripts/ui_guard.py check --project-root . --changed-since <BASE_SHA> --reference-canvas <W>x<H> --asset-catalog <path/to/Assets.xcassets>

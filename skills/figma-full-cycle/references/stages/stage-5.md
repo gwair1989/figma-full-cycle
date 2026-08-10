@@ -41,6 +41,8 @@ These bind both passes, and the second one especially:
 - Mark intentional deviations coming from the resolved contract explicitly.
 - Every screen is compared on at least one **non-reference** size: at the reference size a fixed canvas matches pixel-for-pixel and hides the breakage.
 - An inset divergence inside the LAY-07 system-value snap window (−2…+4pt) is a match, not a defect.
+- Device-frame radii in the mock are presentation chrome, not app pixels. The root render follows the system-provided shape; only an explicitly app-owned surface is compared for corner radius.
+- Check relational geometry, not only absolute resemblance: a surface specified with equal left/right/bottom insets keeps those insets equal on the non-reference size (within 1pt or the equivalent screenshot-pixel tolerance).
 
 ## Fallback
 

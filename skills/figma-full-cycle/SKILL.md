@@ -245,19 +245,22 @@ The pipeline is not strictly linear. The explicit backward edges:
 - Never invent a tool name. A role is filled from the discovery sweep or by its documented fallback; a remembered name that is not in this run's ledger does not exist.
 - Stage 3: the view binds to the Store immediately (skeleton), but reducer bodies and effects belong to stage 7. Never build the UI on fake `@State`.
 - Never lay a screen out on a fixed reference canvas with a global `scaleEffect`, and never turn absolute Figma coordinates into `position`/static `offset`. Design-to-code output arriving in that shape is rewritten into native flexible layout before the stage 3 gate, not filed as a stage 5 remark.
+- Never let oversized decorative artwork participate in root-stack measurement. Put it in a background/overlay or locally bound and clip it before it enters the screen stack.
+- Never copy a Figma device-frame radius onto the root view. The system owns the physical display and presentation shape; app code rounds only app-owned surfaces.
 - Never compensate a layout error with an eyeballed geometry constant. Fix the cause; any surviving `safeAreaInsets`/`geo` arithmetic carries its derivation.
 - Never let a view reference a palette entry directly, add a second entry for a value the palette already holds, or bake opacity into a new entry. A colour with no semantic token is a question for the contract, not an inline literal.
 - The main thread is the only writer of the manifest.
 
 ## Common Mistakes
 
-The twelve that cost the most. The full catalog — grouped by stage and area, read the group you are in — lives in [`references/pitfalls.md`](references/pitfalls.md).
+The mistakes that cost the most. The full catalog — grouped by stage and area, read the group you are in — lives in [`references/pitfalls.md`](references/pitfalls.md).
 
 - Creating the worktree before validating the input → a junk branch from a broken link.
 - Starting Figma reading or implementation before auditing the project's Layout / Strings / Typography / Colors / Images / Accessibility.
 - A giant `get_design_context` on the parent frame before the metadata map → truncated context and wasted MCP calls.
 - Calling a skill by the name written in this repository without checking the run's catalog: it may be absent, renamed, namespaced, plugin-prefixed, or replaced by a newer vendor skill.
 - Laying a screen out as a fixed reference canvas plus `scaleEffect`, or turning absolute Figma coordinates into `.position(...)`: both are valid at exactly one canvas size, and `scaleEffect` over text kills re-layout and Dynamic Type.
+- Letting an oversized decorative image widen the root stack, or implementing the rounded Figma device frame as the app's screen mask.
 - Reading a whole `.xcstrings`, repeating a repo-wide search or build per string, or handing a catalog blob to several subagents instead of one inventory/lookup batch.
 - A gate "green by assertion" without a real run and an evidence record.
 - The whole `.env` copied into the worktree → secrets multiplied.

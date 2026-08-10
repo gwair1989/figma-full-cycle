@@ -31,6 +31,8 @@ Rules and the detailed failure catalog: [`layout-adaptivity-contract.md`](layout
 - Laying a screen out as a fixed reference canvas plus `scaleEffect`: it is an aspect-fit of the artboard, so another aspect ratio gets letterboxing instead of adaptation, and `scaleEffect` over text kills re-layout and Dynamic Type.
 - Turning absolute Figma coordinates into `.position(...)`: valid at exactly one canvas size, and it makes the fixed canvas impossible to remove later.
 - A hard `.frame(w, h)` on `Color`/`Rectangle` (they are already greedy — the frame shrinks them), a derived `.frame(width: 393 - 32)` instead of `.padding(.horizontal, 16)`, or `.background(...)` applied before `.frame(maxWidth: .infinity)` so the background paints only the content.
+- Letting decorative artwork wider than the screen participate in the root `ZStack`: the stack adopts the artwork's ideal width and an outer frame centres the wrong box. Put it in a background/overlay or bound and clip the artwork locally first.
+- Copying the Figma device-frame corner radius onto a full-screen background: the system already owns device and presentation clipping, and a rectangular device exposes the app-added cut-outs.
 - Copying a legacy screen's layout because "the project does it that way" while project documentation marks the pattern as forbidden for new screens.
 - Compensating a centring error with `.offset(y: -safeAreaInsets.top / 2)` eyeballed from one preview instead of fixing where the geometry comes from.
 - Comparing at stage 5 only on the reference device: a fixed canvas matches pixel-for-pixel there and hides the breakage on the smallest supported device.

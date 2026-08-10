@@ -2,7 +2,7 @@
 
 The sixth area of the project UI convention contract. The goal is to fix **which layout API** the feature is built with, so the screen adapts to every supported size by itself instead of being tuned with numbers for one device.
 
-**Read it in full at the start of stage 3** — the stage that enforces LAY-01…LAY-10 — and keep it in session for stages 5, 6 and 8. The preflight audit does not read this file: it resolves the `Layout` row from the baseline digest in [`project-ui-conventions.md`](project-ui-conventions.md), and reads this contract early only when that row cannot be resolved without it.
+**Read it in full at the start of stage 3** — the stage that enforces LAY-01…LAY-13 — and keep it in session for stages 5, 6 and 8. The preflight audit does not read this file: it resolves the `Layout` row from the baseline digest in [`project-ui-conventions.md`](project-ui-conventions.md), and reads this contract early only when that row cannot be resolved without it.
 
 The area resolves with the same statuses as the others: `matched / project-specific / skill-fallback / inferred-from-code / conflict / not-applicable`.
 
@@ -82,7 +82,7 @@ Two conditions, both checked:
 
 Every composition is listed in the guard's output, including one that exempted nothing: an exemption nobody sees is a rule nobody enforces, and a marker that silently matches nothing rots in the source.
 
-Detection: any `.position(`; `.offset(` outside an animation context, minus declared compositions.
+Detection: any `.position(`; any `.offset(` outside an explicit animation/transition/gesture context, minus declared compositions. A computed property, environment geometry helper or named `…Compensation` is still static layout; naming it or exposing it through a runtime wrapper must never hide it.
 
 ### LAY-05 — position with `alignment`, space with `padding`
 
@@ -159,9 +159,31 @@ Compensation is a symptom. Fix the cause first — where the geometry comes from
 - The stage 6 matrix must include the **smallest supported device** and devices **with and without a home indicator** (different bottom safe area) — these are different bug classes.
 - A screen with geometry needs at least two `#Preview`s: the smallest and the largest supported device. The default preview is the reference device and proves nothing.
 - Evidence is a screenshot per required device with explicit checks: the layout fits the screen, there is no unintended letterboxing, no clipped content, the background reaches the edges.
+- The UI Plan records the screen's relational edge invariants. If a surface is meant to have equal left/right/bottom insets, stage 6 measures or explicitly verifies those three distances on the smallest and largest device; “nothing clips” is not evidence that the surface stayed centred.
 - [`../scripts/screenshot_diff.py`](../scripts/screenshot_diff.py) answers three of those four mechanically — letterboxing, pillarboxing, background to the edges — in a batch over the whole matrix. It compares a mock against a render **of a different size**, which is the point: at the reference size a fixed canvas matches pixel-for-pixel.
 - **Clipping it cannot gate across device classes.** Normalizing stretches the mock, while a native layout adapts by holding its metrics in points, so a correctly adapted screen differs in the bottom band exactly as a broken one does. Beyond the aspect tolerance the script reports that number and refuses to decide on it. On the smallest supported device, clipping is confirmed by eye.
 - It is a filter, not the gate — also blind to typeface, icon shape, copy and small colour shifts. Eyes go on every failing row, one passing row per screen, and the smallest-device row.
+
+### LAY-12 — the system owns the screen and presentation shape
+
+Do not copy the corner radius of a Figma device frame into the root screen. A full-screen view, sheet or cover fills the region the system gives it; the physical display, window and presentation controller apply whatever clipping their device or presentation requires. A rectangular device must therefore stay rectangular without app code removing its corners.
+
+Rounded app-owned surfaces — cards, panels, buttons and an explicitly specified custom container — remain valid. The distinction is ownership, not radius size: a screen-sized `.clipShape(RoundedRectangle(...))`, `.cornerRadius(...)` or equivalent mask is forbidden unless the project contract explicitly says the app owns that outer shape.
+
+Detection: a rounded clip/corner modifier on a chain that pins both screen dimensions or stretches to both `.infinity` axes.
+
+### LAY-13 — overflow artwork must not size the screen stack
+
+An oversized decorative child has an ideal size. If it participates directly in a screen-level `ZStack`, that ideal width or height can become the stack's layout width before an outer frame is applied; the outer frame then centres the oversized stack and shifts all ordinary content. A fixed frame on the root does not undo that measurement.
+
+Artwork that extends beyond the screen uses one of these shapes:
+
+- place it in `.background` / `.overlay`, where it cannot propose the foreground stack's size; or
+- locally bound the artwork to the live screen region, with the bounding `.frame(...)` followed by `.clipped()` / an intentional mask, before it enters the parent stack.
+
+Negative padding and artwork-local transforms may create visual overflow only inside that bounded layer. They must not be used as a compensation on the screen container. When the artwork exceeds the reference canvas, pass `--reference-canvas`; `ui_guard` reports an image without a later screen bound and clip.
+
+Detection: `Image` / `AsyncImage` with a resolvable dimension larger than the reference canvas and no later screen-sized bound plus clip in the same modifier chain. Unresolved overflow remains reviewer work: inspect decorative children of every screen-level stack.
 
 ## 3. How this enters the stages
 
@@ -169,12 +191,12 @@ Compensation is a symptom. Fix the cause first — where the geometry comes from
 |-------|---------------|
 | Preflight | A `Layout` row in the UI convention contract: reference canvas, permitted scaling API, smallest/largest device, patterns the project forbids |
 | 1 (UI Plan) | Layout is described through containers and relations, not artboard coordinates; absolute coordinates from design context never move into the plan as a layout technique |
-| 3 (implementation) | LAY-01…LAY-10 are part of the gate. A violation blocks the stage instead of becoming a stage 5 remark |
+| 3 (implementation) | LAY-01…LAY-13 are part of the gate. A violation blocks the stage instead of becoming a stage 5 remark |
 | 5 (comparison) | Compare on at least one **non-reference** size: at the reference size a fixed canvas matches pixel-for-pixel and hides the breakage. A divergence inside the −2…+4pt LAY-07 window is not a defect |
 | 6 (adaptivity) | Matrix per LAY-11; evidence for every required device |
-| 8 (review) | Re-run the detections for LAY-01…LAY-04, LAY-08, LAY-09 over the changed files |
+| 8 (review) | Re-run the detections for LAY-01…LAY-04, LAY-08…LAY-10, LAY-12 and LAY-13 over the changed files |
 
-LAY-01…LAY-04 and LAY-08…LAY-10 are detected by [`../scripts/ui_guard.py`](../scripts/ui_guard.py); pass `--reference-canvas` so LAY-01 keys on the project's actual artboard instead of a size threshold. LAY-05, LAY-06, LAY-07 and LAY-11 need intent, the project's system values or a screenshot — the script lists them as reviewer work and they stay part of the same gate. Waive a detected line in code with `// ui-guard: allow LAY-04 — <reason>`; the waiver is reported, not hidden, and is reviewed again at stage 8.
+LAY-01…LAY-04, LAY-08…LAY-10, LAY-12 and LAY-13 are detected by [`../scripts/ui_guard.py`](../scripts/ui_guard.py); pass `--reference-canvas` so LAY-01 and LAY-13 key on the project's actual artboard instead of a size threshold. LAY-05, LAY-06, LAY-07 and LAY-11 need intent, the project's system values or a screenshot — the script lists them as reviewer work and they stay part of the same gate. Waive a detected line in code with `// ui-guard: allow LAY-04 — <reason>`; the waiver is reported, not hidden, and is reviewed again at stage 8.
 
 ## 4. Failure catalog
 
@@ -208,3 +230,17 @@ Entry format: symptom → cause → rule → detection.
 - **Cause:** `.background(...)` was applied before `.frame(maxWidth: .infinity, maxHeight: .infinity)`, so it took the content's ideal size; the following frame merely centred an already-painted view.
 - **Rule:** LAY-08.
 - **Detection:** `.background(` before `.frame(maxWidth: .infinity` in one chain.
+
+### FAIL-05 — decoration shifted every foreground element on a compact device
+
+- **Symptom:** foreground content is centred on the reference device but moves left or right on a narrower device, while its own paddings look correct in source.
+- **Cause:** artwork wider than the screen participated in the root `ZStack` measurement; the outer screen frame centred the oversized stack rather than bounding the artwork locally.
+- **Rule:** LAY-13, LAY-11.
+- **Detection:** stage 3 — LAY-13 with `--reference-canvas`; reviewer inspection for unresolved decorative sizes. Stage 6 — verify equal edge insets on the smallest device, not clipping alone.
+
+### FAIL-06 — the app rounded a rectangular device
+
+- **Symptom:** a full-screen background has visible white cut-outs in the corners on an SE-class rectangular display, although the rounded mock looked correct on the reference device.
+- **Cause:** the Figma device-frame radius was implemented as a root `.clipShape` / `.cornerRadius` instead of being treated as presentation chrome.
+- **Rule:** LAY-12.
+- **Detection:** stage 3 — a rounded clip on a screen-sized chain; stage 5/6 — confirm the root reaches every system-provided corner and has no app-owned device mask.

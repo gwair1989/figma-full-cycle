@@ -174,6 +174,101 @@ class TestLayoutRules(GuardTestCase):
         )
         self.assertNotIn("LAY-04", animated_rules)
 
+    def test_computed_layout_offset_fails_closed(self) -> None:
+        rules = self.rules_for(
+            "struct Metrics { let canvasLeadingCompensation: CGFloat }\n"
+            "struct V: View {\n"
+            "    let metrics: Metrics\n"
+            "    var body: some View {\n"
+            '        Text("x").offset(x: metrics.canvasLeadingCompensation)\n'
+            "    }\n"
+            "}\n"
+        )
+
+        self.assertIn("LAY-04", rules)
+
+    def test_environment_geometry_does_not_turn_offset_into_animation(self) -> None:
+        rules = self.rules_for(
+            "struct Metrics { let canvasLeadingCompensation: CGFloat }\n"
+            "struct V: View {\n"
+            "    @Environment(Metrics.self) private var metrics\n"
+            "    var body: some View {\n"
+            '        Text("x").offset(x: metrics.canvasLeadingCompensation)\n'
+            "    }\n"
+            "}\n"
+        )
+
+        self.assertIn("LAY-04", rules)
+
+    def test_state_driven_offset_remains_allowed(self) -> None:
+        rules = self.rules_for(
+            "struct V: View {\n"
+            "    @State private var dragTranslation: CGFloat = 0\n"
+            "    var body: some View {\n"
+            '        Text("x").offset(x: dragTranslation)\n'
+            "    }\n"
+            "}\n"
+        )
+
+        self.assertNotIn("LAY-04", rules)
+
+    def test_screen_sized_rounded_clip_is_reported(self) -> None:
+        rules = self.rules_for(
+            "struct V: View { var body: some View {\n"
+            "    ZStack { EmptyView() }\n"
+            "        .frame(width: 393, height: 852)\n"
+            "        .clipShape(RoundedRectangle(cornerRadius: 44))\n"
+            "} }\n",
+            "--reference-canvas",
+            "393x852",
+        )
+
+        self.assertIn("LAY-12", rules)
+
+    def test_rounded_card_is_not_treated_as_a_screen_mask(self) -> None:
+        rules = self.rules_for(
+            "struct V: View { var body: some View {\n"
+            "    VStack { EmptyView() }\n"
+            "        .frame(maxWidth: .infinity)\n"
+            "        .frame(height: 280)\n"
+            "        .clipShape(RoundedRectangle(cornerRadius: 32))\n"
+            "} }\n",
+            "--reference-canvas",
+            "393x852",
+        )
+
+        self.assertNotIn("LAY-12", rules)
+
+    def test_oversized_image_that_can_size_a_stack_is_reported(self) -> None:
+        rules = self.rules_for(
+            "struct V: View { var body: some View {\n"
+            "    ZStack {\n"
+            '        Image("pattern")\n'
+            "            .frame(width: 424, height: 578)\n"
+            "    }\n"
+            "    .frame(width: 393, height: 852)\n"
+            "} }\n",
+            "--reference-canvas",
+            "393x852",
+        )
+
+        self.assertIn("LAY-13", rules)
+
+    def test_oversized_image_is_allowed_after_local_bounding_and_clipping(self) -> None:
+        rules = self.rules_for(
+            "struct V: View { var body: some View {\n"
+            '    Image("pattern")\n'
+            "        .frame(width: 424, height: 578)\n"
+            "        .padding(.leading, -31)\n"
+            "        .frame(width: 393, height: 852, alignment: .topLeading)\n"
+            "        .clipped()\n"
+            "} }\n",
+            "--reference-canvas",
+            "393x852",
+        )
+
+        self.assertNotIn("LAY-13", rules)
+
     def test_background_before_stretch(self) -> None:
         rules = self.rules_for(
             "struct V: View { var body: some View {\n"

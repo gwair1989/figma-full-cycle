@@ -36,7 +36,7 @@ Of the four LAY-11 questions the script gates on three — unintended letterboxi
 
 **Clipping does not, and this matters most on the row where it matters most.** The mock is stretched to the render's size, while a native layout adapts by holding its metrics in points, so on a different device class a correctly adapted screen also differs in the bottom band. The script reports that difference and refuses to gate on it, saying so in the output (`not gated: mock 2.17 vs render 1.78 aspect`). On the smallest supported device — a different aspect from the mock nearly every time — **whether content is clipped is a reviewer question, and that row is looked at by eye regardless of its verdict.**
 
-Also reviewer work, on every row: text truncated rather than clipped, a locale that reflows badly, a control that moved somewhere legal but wrong. Eyes go on every `FAIL`, on one `PASS` per screen, and on the smallest-device row.
+Also reviewer work, on every row: text truncated rather than clipped, a locale that reflows badly, a control that moved somewhere legal but wrong. Confirm the UI Plan's edge invariants as relations: when left/right/bottom insets are intended to be equal, record their measured values (≤1pt divergence) on the smallest and largest device. Confirm that the root has no app-added device-frame mask; rectangular devices keep their system-provided corners. Eyes go on every `FAIL`, on one `PASS` per screen, and on the smallest-device row.
 
 ## Fallback
 
@@ -47,6 +47,7 @@ Also reviewer work, on every row: text truncated rather than clipped, a locale t
 
 - Every row required by the resolved contract shows no clipping or overlap.
 - Per required device the screenshot evidence explicitly confirms: the layout fits the screen, no unintended letterboxing, no clipped content, background reaching the edges.
+- Intended equal-edge insets are measured or explicitly verified on the smallest and largest device; the root presentation shape is system-owned.
 - The batch run's marker and report path are recorded; every `FAIL`, one `PASS` per screen, and the smallest-device row for each screen were reviewed by eye.
 - Translation readiness tracked separately from the source gate.
 - Evidence stored.

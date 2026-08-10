@@ -63,6 +63,8 @@ CHECKED = {
     "LAY-08": "background applied before the stretch frame",
     "LAY-09": "scaleEffect on a text-bearing container",
     "LAY-10": "geometry arithmetic without a derivation",
+    "LAY-12": "screen shape clipped or rounded by app code",
+    "LAY-13": "oversized artwork can participate in stack measurement",
     "COL-01": "palette symbol referenced outside the semantic layer",
     "COL-02": "two palette entries with the same value",
     "COL-04": "alpha encoded in a palette entry name",
@@ -142,7 +144,7 @@ GREEDY_SHAPE_RE = re.compile(r"\b(Color|Rectangle|RoundedRectangle|Capsule|Circl
 GEOMETRY_RE = re.compile(r"\b(safeAreaInsets|geo\.size|proxy\.size|geometry\.size|UIScreen\.main\.bounds)\b")
 ANIMATION_RE = re.compile(
     r"\b(withAnimation|matchedGeometryEffect|transition|animation|Animation|"
-    r"isAnimating|animate|GestureState|DragGesture|offsetY|dragOffset)\b"
+    r"isAnimating|animate|GestureState|DragGesture|offsetY|dragOffset|dragTranslation)\b"
 )
 PREVIEW_RE = re.compile(r"#Preview\b|\bPreviewProvider\b|\bPreviewLayout\b")
 
@@ -789,6 +791,9 @@ def check_layout(
 
     for chain in source.chains:
         text = chain.text
+        chain_frames: List[
+            Tuple[int, int, Optional[float], Optional[float], bool]
+        ] = []
 
         for frame_offset, args in frame_calls(text):
             line = chain.line_at(frame_offset)
@@ -800,14 +805,27 @@ def check_layout(
             # Both dimensions pinned is the canvas shape unless the block is
             # provably smaller than the screen. Unresolved sizes fail closed:
             # a value the resolver cannot read must not become an escape.
+            is_screen_frame = False
             if fixed_extent(width) and fixed_extent(height):
-                if not provably_smaller_than_screen(width_number, height_number, canvas):
+                is_screen_frame = not provably_smaller_than_screen(
+                    width_number, height_number, canvas
+                )
+                if is_screen_frame:
                     canvas_frames.append(
                         (
                             line,
                             "{} × {}".format(describe(width, width_number), describe(height, height_number)),
                         )
                     )
+            chain_frames.append(
+                (
+                    frame_offset,
+                    line,
+                    width_number,
+                    height_number,
+                    is_screen_frame,
+                )
+            )
 
             for label, value, number in (
                 ("width", width, width_number),
@@ -851,6 +869,54 @@ def check_layout(
                         )
                     )
 
+        rounded_screen = re.search(
+            r"\.(?:cornerRadius\s*\(|clipShape\s*\(\s*(?:RoundedRectangle\s*\(|\.rect\s*\(\s*cornerRadius\s*:))",
+            text,
+        )
+        stretches_screen = re.search(
+            r"\.frame\s*\((?=[^)]*maxWidth\s*:\s*\.infinity)(?=[^)]*maxHeight\s*:\s*\.infinity)[^)]*\)",
+            text,
+        )
+        if rounded_screen and (
+            any(frame[4] for frame in chain_frames) or stretches_screen
+        ):
+            findings.append(
+                Finding(
+                    source.display,
+                    chain.line_at(rounded_screen.start()),
+                    "LAY-12",
+                    "screen-sized content is manually rounded or clipped — the system owns the display and presentation shape",
+                )
+            )
+
+        if canvas and re.search(r"\b(?:Image|AsyncImage)\s*\(", text):
+            oversized = [
+                frame
+                for frame in chain_frames
+                if (frame[2] is not None and frame[2] > canvas[0])
+                or (frame[3] is not None and frame[3] > canvas[1])
+            ]
+            if oversized:
+                first_oversized = oversized[0]
+                bounds = [
+                    frame
+                    for frame in chain_frames
+                    if frame[0] > first_oversized[0] and frame[4]
+                ]
+                clip = re.search(r"\.(?:clipped|clipShape|mask)\s*\(", text)
+                locally_bounded = bool(
+                    bounds and clip and clip.start() > bounds[-1][0]
+                )
+                if not locally_bounded:
+                    findings.append(
+                        Finding(
+                            source.display,
+                            first_oversized[1],
+                            "LAY-13",
+                            "artwork exceeds the reference canvas and is not locally bounded then clipped — it can widen its parent stack",
+                        )
+                    )
+
         position = re.search(r"\.position\s*\(", text)
         if position:
             geometry.append(
@@ -869,7 +935,7 @@ def check_layout(
             static = [
                 value
                 for value in values
-                if value is not None and resolve_number(value, constants) is not None
+                if value is not None
             ]
             if static:
                 geometry.append(
