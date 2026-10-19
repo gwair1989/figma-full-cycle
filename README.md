@@ -35,8 +35,8 @@ Installing the plugin makes all four workflows available; invoking one does not 
 | `device-usage` | Testing a physical iPhone through Device Hub, without Figma or a pipeline |
 
 This is the canonical repository for all four skills. Device Usage development, issues and releases
-now live here; the [original repository](https://github.com/gwair1989/device-usage) is retained for
-history. You can still install and invoke `device-usage` on its own.
+now live here; the former standalone repository has been removed. You can still install and invoke
+`device-usage` on its own.
 
 Device Hub is the physical-device workflow's primary channel; iPhone Mirroring is its fallback.
 The plugin supplies instructions and an optional screenshot recorder. It does not install Xcode,

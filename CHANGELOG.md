@@ -6,6 +6,11 @@ versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Removed links to the former `gwair1989/device-usage` repository after its deletion. All four
+  skills continue to be maintained here, with independent Device Usage installation preserved.
+
 ## [1.1.0] — 2026-10-19
 
 ### Added

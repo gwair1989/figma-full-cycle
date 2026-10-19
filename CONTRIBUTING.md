@@ -46,7 +46,7 @@ Node.js 22+ is required for the helper tests, with no npm dependencies.
 
 This repository is the canonical development and release location for all four skills, including
 `device-usage`. Submit fixes, issues and pull requests here; the original `gwair1989/device-usage`
-repository is retained for history and is not an active upstream to synchronize with.
+repository was removed after consolidation. There is no separate upstream to synchronize with.
 
 `skills/device-usage/` was imported from commit `8d471d565b3335969e5d90b1eac22f67f237b5e1`;
 its MIT notice stays in that directory. The bundled agent-compatibility reference explains
