@@ -1,0 +1,9 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "figma-full-cycle",
+  "version": "1.1.0",
+  "description": "Four separately invocable skills for Figma feature implementation, specifications, Xcode assets and physical iPhone testing through Device Hub.",
+  "author": { "name": "gwair1989", "url": "https://github.com/gwair1989" },
+  "repository": "https://github.com/gwair1989/figma-full-cycle",
+  "license": "MIT"
+}

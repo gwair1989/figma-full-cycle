@@ -12,6 +12,7 @@
 - Reconcile copy from Figma against the resolved Strings contract; build one deduplicated feature copy inventory and run one batched lookup.
 - Fill the compact UI Plan from the spec and the project contract. Describe layout as containers and relations, never as artboard coordinates — absolute positions from design context do not enter the plan as a layout technique.
 - A static mockup is not a source of behavior — question or TBD (in `ui-first`, `deferred-to-spec`).
+- Fill the spec's Architecture note from the resolved Project architecture contract, including its source. Missing architecture is a user question before this stage, including in `ui-first`.
 
 ## Fallback
 
@@ -24,6 +25,7 @@
 - Capability ledger and Figma access probe recorded.
 - Figma capability / source quality / provenance recorded.
 - Spec and UI Plan on disk.
+- Architecture note matches the documented or user-confirmed contract.
 - `ui_plan.py --phase ui` passes.
 - Blockers answered.
 - Every copy and mapping has provenance and status.

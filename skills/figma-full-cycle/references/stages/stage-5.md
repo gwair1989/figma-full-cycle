@@ -4,6 +4,8 @@
 
 Re-check the Figma pin before anything else. Version changed → dependent visual gates go `stale` and the user is told.
 
+When physical iPhone checks are requested, also read [`../device-validation.md`](../device-validation.md) and use the `physical-device-control` binding for capture. Compare native app screenshots; keep Device Hub window captures as control evidence rather than inputs to the geometry comparison.
+
 ## Two passes, in this order
 
 Comparing costs an image in context per pair, and every screen has at least two pairs (reference and non-reference size). So the stage filters first and looks second.
@@ -22,7 +24,7 @@ It normalizes the mock to the render's size, so a non-reference device is a norm
 
 On a **non-reference size the aspect usually differs from the mock**, and there the structural grid diff is reported but not gated: a correctly adapted native layout diverges from the stretched mock just as a broken one does, so the number cannot separate them. The non-reference pair is therefore still compared by eye whatever its verdict — it is the pair most likely to carry the defect.
 
-**2. `visual-comparison` over the pairs that earned it** — one explorer subagent per screen, against a `#Preview` or a simulator screenshot:
+**2. `visual-comparison` over the pairs that earned it** — one explorer subagent per screen, against a `#Preview`, simulator screenshot or native physical-device screenshot:
 
 - every pair the geometry pass marked `FAIL`;
 - **one `PASS` pair per screen**, chosen as the most content-dense state;

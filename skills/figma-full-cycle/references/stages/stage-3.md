@@ -4,11 +4,11 @@
 
 ## Role binding
 
-Consume only the validated UI Plan.
+Consume the validated UI Plan and resolved Project architecture contract.
 
 - A bound `design-to-code-workflow` is a mandatory workflow prerequisite before `get_design_context`; a bound `platform-design-translator` complements it, never replaces it.
 - Target: `clientLanguages=swift`, `clientFrameworks=swiftui`. Declare a name in `skillNames` only when that exact registered name was discovered **and** loaded (resource prefix per the acquisition contract).
-- Then `platform-ui-idiom` + `app-architecture` (skeleton `State`/`Action`, the view binds to the Store).
+- Then `platform-ui-idiom` + `app-architecture`: create the state owners, UI bindings and interaction interfaces required by the resolved architecture. Use its navigation and dependency boundaries; business logic and external side effects wait for stage 7. Local view state follows that architecture rather than a universal prohibition.
 - MCP and skill output is an intermediate structure; the UI Plan, spec and project contract define scope and behavior and forbid inferred navigation, data or persistence.
 
 Per area:
@@ -23,10 +23,12 @@ Per area:
 
 - `design-to-code-workflow` unbound → do not fake `skillNames`, use its documented fallback.
 - `platform-design-translator` unbound → the generic binding plus the project's UI skills and precedent.
+- No matching `app-architecture` skill → implement the resolved contract directly. Unresolved architecture → ask the user before implementation; do not adopt a different pattern from another skill.
 
 ## Gate
 
 - UI Plan hash and evidence current.
+- Architecture contract resolved; UI state ownership and bindings comply with it.
 - Component and token targets verified in the project.
 - Expected Strings keys verified.
 - Build succeeds.

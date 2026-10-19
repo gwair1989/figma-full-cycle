@@ -2,6 +2,8 @@
 
 **Read before starting** (skip what the session already holds): LAY-11 of [`../layout-adaptivity-contract.md`](../layout-adaptivity-contract.md).
 
+Physical iPhone rows use [`../device-validation.md`](../device-validation.md) and `physical-device-control`. Record their target and capture source explicitly. A connected phone covers its own rows only; keep the other required sizes and configurations in the simulator/device matrix.
+
 ## Role binding
 
 Build the matrix from the deployment target plus the spec, Strings, Layout and Accessibility contracts, per LAY-11:

@@ -2,6 +2,8 @@
 
 Read in full once during `figma-full-cycle` preflight. The goal is to discover the specific project's rules first, then map them onto the skill's baseline and record one resolved decision per area for implementation.
 
+These six UI areas are separate from the [project architecture contract](../SKILL.md#project-architecture--documentation-or-user-decision). Their `inferred-from-code` fallback does not authorize choosing an app architecture: that choice requires project documentation or a user decision.
+
 ## 1. Find the project's sources
 
 Search in this order; do not read vendor or generated directories unless necessary:

@@ -9,17 +9,40 @@ as eight gated stages, one commit per stage, with a tracked manifest as the sour
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-black.svg)](LICENSE)
 [![CI](https://github.com/gwair1989/figma-full-cycle/actions/workflows/ci.yml/badge.svg)](https://github.com/gwair1989/figma-full-cycle/actions/workflows/ci.yml)
-![Skills: 2](https://img.shields.io/badge/skills-2-blue)
+![Skills: 4](https://img.shields.io/badge/skills-4-blue)
 ![Runtime deps: none](https://img.shields.io/badge/runtime%20deps-none-brightgreen)
-![Target stack: SwiftUI + TCA](https://img.shields.io/badge/target-SwiftUI%20%2B%20TCA-orange)
+![Target UI: SwiftUI](https://img.shields.io/badge/target-SwiftUI-orange)
 
-> **Language note.** The skill, its references and its templates are English. Each skill's
+> **Language note.** The Figma skills, references and templates are English. The bundled
+> `device-usage` instructions retain their upstream Russian. Each Figma skill's
 > `description` also keeps its Russian trigger phrases, so Russian prompts still fire it, and the
 > documents the skill writes into your project follow **your** language. Machine-read structure —
 > UI Plan keys, statuses, manifest headings, commit subjects — stays English so the validator and
 > resume keep working. [README.ru.md](README.ru.md) is the Russian version of this page.
 
 ---
+
+## One plugin, four entry points
+
+This repository is both a collection of reusable skills and a distributable Codex plugin.
+Installing the plugin makes all four workflows available; invoking one does not start the others.
+
+| Skill | Use independently for |
+|---|---|
+| `figma-full-cycle` | Implementing an entire Figma feature; orchestrates spec and asset skills |
+| `figma-feature-spec` | Writing a feature specification without implementing the app |
+| `import-figma-assets` | Importing artwork into an Xcode asset catalog |
+| `device-usage` | Testing a physical iPhone through Device Hub, without Figma or a pipeline |
+
+This is the canonical repository for all four skills. Device Usage development, issues and releases
+now live here; the [original repository](https://github.com/gwair1989/device-usage) is retained for
+history. You can still install and invoke `device-usage` on its own.
+
+Device Hub is the physical-device workflow's primary channel; iPhone Mirroring is its fallback.
+The plugin supplies instructions and an optional screenshot recorder. It does not install Xcode,
+Computer Use, an MCP server or macOS permissions. Simulator checks remain separate; one connected
+phone does not replace the adaptivity matrix. Physical checks join the full cycle only when the
+user or project requires them.
 
 ## Why this exists
 
@@ -41,11 +64,11 @@ A single "implement this Figma screen" prompt fails predictably on real features
 | 0 | Worktree — branch, secrets by symlink, build defaults, baseline build/test | Baseline recorded, manifest created |
 | 1 | Spec + UI Plan — screens, navigation map, asset inventory, copy inventory | Spec and `UI_PLAN.json` on disk, `ui_plan.py --phase ui` passes, blockers answered |
 | 2 | Assets — import by node-id inventory | Build succeeds, every asset verified present |
-| 3 | UI implementation + TCA skeleton | UI Plan evidence fresh, strings verified, build succeeds, every screen/state done |
+| 3 | UI implementation + project architecture skeleton | UI Plan evidence fresh, strings verified, build succeeds, every screen/state done |
 | 4 | UI refactor — *conditional*, only on findings | Build succeeds, affected checks marked `stale` |
 | 5 | Design diff — per-screen comparison against the pinned Figma frame | Report on disk, mismatches fixed and re-checked |
 | 6 | Adaptivity — small/large screens, light/dark, content sizes, locales, keyboard | No clipping or overlap, evidence stored |
-| 7 | Reducer logic + runtime navigation + tests | `ui_plan.py --phase production` passes, tests pass, TBDs flagged |
+| 7 | Business logic + runtime navigation + tests | `ui_plan.py --phase production` passes, tests pass, TBDs flagged |
 | 8 | Final review | Review clean, no stray user-facing literals, clean checkpoint committed |
 
 Two properties make this survivable in practice:
@@ -60,16 +83,23 @@ Two properties make this survivable in practice:
 - **Agent:** Claude Code or Codex (an adapter maps every capability to concrete tool names).
 - **Figma MCP** with read access, and `FIGMA_ACCESS_TOKEN` by stage 5.
 - **Python 3.9+** — standard library only, nothing to `pip install`.
-- **Target project:** an Xcode/SwiftUI app; stage 3 and stage 7 assume
-  [TCA](https://github.com/pointfreeco/swift-composable-architecture), with documented fallbacks
-  to the project's own stack skills.
+- **Target project:** an Xcode/SwiftUI app. Architecture comes from the project's documentation
+  or an explicit user decision. Missing, ambiguous or contradictory documentation → ask the user;
+  source code and installed skills do not select the architecture. The decision and its source are
+  recorded in the manifest and spec before implementation, including in `ui-first`. Stages 3 and 7
+  follow that architecture; no particular architecture framework is required.
 - **Companion skills** are **discovered, not required by name.** Preflight sweeps the skills,
   MCP tools, MCP resources, plugins and project-local scripts actually installed on your machine and
   binds one of them to each stage *role* — `design-to-code-workflow`, `platform-ui-idiom`,
   `app-architecture`, `visual-comparison`, `code-review`, … Renamed, namespaced, plugin-prefixed or
   brand-new vendor skills are picked up the same way; every role that finds nothing falls back to a
   documented path. Only what ships here is pinned by name: `figma-full-cycle`, `figma-feature-spec`,
-  `import-figma-assets`.
+  `import-figma-assets`, and optional `device-usage`. Bundled identities resolve to their actual
+  registered names, including plugin namespaces.
+- **Physical iPhone checks only:** macOS, a paired physical iPhone, Xcode with Device Hub, and a
+  compatible desktop Computer Use tool for autonomous GUI actions. Follow the bundled skill's
+  capability checks; CLI diagnostics remain possible when GUI control is unavailable.
+- **Optional device evidence recorder and its tests:** Node.js 22+, standard library only.
 
 Missing capabilities are reported as a single up-front blocker list, not discovered one by one
 halfway through the build. The resulting bindings — plus the Figma auth and node-reachability
@@ -77,21 +107,54 @@ probe — are written into the manifest's capability ledger.
 
 ## Install
 
+### Codex plugin
+
+The portable manifest is `plugin.json`; `.codex-plugin/plugin.json` supports Codex compatibility.
+The repo marketplace is `.agents/plugins/marketplace.json`. From this checkout, with a Codex CLI
+that exposes `plugin add`:
+
+```bash
+git clone https://github.com/gwair1989/figma-full-cycle.git
+cd figma-full-cycle
+codex plugin marketplace add .
+codex plugin add figma-full-cycle@figma-full-cycle-local
+```
+
+Alternatively select the local marketplace in the desktop Plugins Directory. Start a fresh
+session after installation and select the skill by the exact name shown in its catalog; a plugin
+may qualify it, for example `figma-full-cycle:device-usage`. Packaging follows the
+[official plugin format](https://developers.openai.com/plugins/build/plugins).
+This repo is a local distribution source, not a public-directory listing.
+
+### Standalone skills
+
 ```bash
 git clone https://github.com/gwair1989/figma-full-cycle.git
 cd figma-full-cycle
 ./install.sh
 ```
 
-`install.sh` symlinks all three skills into `~/.claude/skills` — so `git pull` updates them in place.
+`install.sh` symlinks all four skills into `~/.claude/skills` — so `git pull` updates them in place.
 
 ```bash
 ./install.sh --target ~/.codex/skills   # Codex
+./install.sh --target ~/.agents/skills --skill device-usage   # only Device Hub workflow
+./install.sh --target ~/.agents/skills --skill figma-feature-spec --skill import-figma-assets
 ./install.sh --target .claude/skills    # this project only
 ./install.sh --copy                     # copy instead of symlink
 ./install.sh --force                    # replace an existing skill of the same name
 ./install.sh --uninstall                # remove what it installed
 ```
+
+`--skill` is repeatable. Selecting `figma-full-cycle` also installs its required spec and asset
+companions; Device Usage stays optional. With `--uninstall --skill`, only the named entries are
+removed, so shared companions remain. `--copy` creates self-contained skill directories suitable
+for moving to another machine; no sibling `device-usage` repository is needed.
+
+Use either plugin installation or standalone registration for a given skill to avoid duplicates.
+Standalone Codex invocations are `$figma-full-cycle`, `$figma-feature-spec`, `$import-figma-assets`
+and `$device-usage`. The standalone directories can also be used by Claude Code; Device Hub UI
+control still requires that host to supply desktop Computer Use.
 
 Already keeping these skills in your skills directory? `--force` replaces them and moves the old
 copies to `.skill-backups` **next to** the skills directory — never inside it, where an agent would
@@ -144,6 +207,9 @@ skills/
 ├── figma-feature-spec/              # stage 1 as a standalone skill
 │   ├── SKILL.md
 │   └── templates/SPEC.template.md
+├── device-usage/                   # standalone physical iPhone / Device Hub workflow
+│   ├── SKILL.md                    # references/, agents/, MIT LICENSE
+│   └── scripts/                    # capture-evidence.mjs and its tests
 └── import-figma-assets/             # stage 2 as a standalone skill
     ├── SKILL.md
     └── scripts/                     # imageset generator, PNG canvas normalizer
@@ -243,16 +309,22 @@ Issues and PRs welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Checks run lo
 ./check.sh
 ```
 
-It runs the 32 validator tests on every Python 3 the machine has — including
-`/usr/bin/python3`, the 3.9 that ships with the Xcode Command Line Tools — then lints skill
-structure and shell syntax. To make that automatic before every push:
+It runs the Python validator and package/installer tests on every detected Python 3 minor
+version, then the Node.js 22+ device recorder tests, skill lint and shell syntax checks.
+All tests use local fixtures and temporary directories; they do not operate a phone or install
+the plugin into your account. To make that automatic before every push:
 
 ```bash
 ln -sf ../../tools/pre-push .git/hooks/pre-push
 ```
 
-CI only checks skill structure and relative links: things a reviewer cannot eyeball in a diff.
+CI checks skill structure, relative links, package/installer behavior and the device recorder.
+The larger Python validator suites stay in the local check runner.
 
 ## License
 
 [MIT](LICENSE) © Oleksandr Khalypa
+
+The bundled Device Usage skill preserves its [MIT notice](skills/device-usage/LICENSE). It was
+imported from `gwair1989/device-usage` at commit `8d471d565b3335969e5d90b1eac22f67f237b5e1`.
+Further development happens directly in this repository; see [CONTRIBUTING.md](CONTRIBUTING.md).

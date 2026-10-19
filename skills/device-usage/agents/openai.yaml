@@ -1,0 +1,6 @@
+interface:
+  display_name: "Device Usage"
+  short_description: "Реальный iPhone: Device Hub, скролл и логи"
+  default_prompt: "Используй $device-usage для проверки подключённого iPhone: Device Hub основной, Видеоповтор запасной; фиксируй покрытие, логи и найденные баги."
+policy:
+  allow_implicit_invocation: true

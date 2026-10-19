@@ -41,7 +41,19 @@ while IFS=$'\t' read -r interpreter version; do
     "$interpreter" "$test"
     record $? "$(basename "$test") (python $version)"
   done
+  step "Package and installer tests — Python $version ($interpreter)"
+  "$interpreter" -m unittest discover -s "$REPO_ROOT/tools/tests"
+  record $? "package and installer tests (python $version)"
 done < <(interpreters)
+
+step "Device screenshot evidence recorder — Node.js 22+"
+if command -v node >/dev/null 2>&1 && node -e 'process.exit(Number(process.versions.node.split(".")[0]) >= 22 ? 0 : 1)'; then
+  node --test "$REPO_ROOT/skills/device-usage/scripts/capture-evidence.test.mjs"
+  record $? "capture-evidence.test.mjs"
+else
+  printf '%s\n' "Node.js 22+ is required to run the device evidence helper tests." >&2
+  record 1 "Node.js 22+ unavailable"
+fi
 
 step "Skill structure"
 python3 "$REPO_ROOT/tools/lint_skills.py"

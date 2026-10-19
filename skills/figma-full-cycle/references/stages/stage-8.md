@@ -16,6 +16,7 @@ Then:
 
   A waiver added since stage 3 is reviewed here, not accepted because it is already in the file.
 - If UI or copy changed → targeted stages 5/6 and a repeated Strings key-level gate for the changed `copy_id` only.
+- If required physical-device routes were affected → repeat those checks through `physical-device-control`; no required row may remain failed, blocked, not-run or stale at finalization.
 
 ## Fallback
 

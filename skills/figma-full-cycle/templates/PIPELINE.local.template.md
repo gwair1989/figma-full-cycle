@@ -2,6 +2,9 @@
 
 - Worktree: <ABS_PATH>
 - Simulator UDID: <UDID>
+- Physical target / device identifiers (only when requested): <LOCAL_DETAILS_OR_NONE>
+- Physical app / build / control channel / input capability: <LOCAL_DETAILS_OR_NONE>
+- Device evidence directory / recorder manifest: <GITIGNORED_PATHS_OR_NONE>
 - Project/workspace: <PATH>
 - Scheme / configuration: <SCHEME> / <CONFIG>
 - DerivedData: <PATH>

@@ -30,8 +30,13 @@ Template: `templates/SPEC.template.md` (canonical structure).
 - **Required:** a Figma URL shaped `https://figma.com/design/:fileKey/:name?node-id=1-2` → extract
   `fileKey` and `node-id`.
 - Optional: feature name (otherwise taken from the frame name), output path (default
-  `docs/<FEATURE>_SPEC.md`), the stack for the "Architecture note" (default: derive it from the
-  project — reducer pattern, copy centralization, colorsets).
+  `docs/<FEATURE>_SPEC.md`), an explicit architecture decision from the user for this feature.
+
+## Resolve the architecture
+
+Before drafting the Architecture note, reuse the resolved Project architecture contract when running inside `figma-full-cycle`. For standalone use, read applicable project instructions, `README*`, architecture documents / ADRs and module documentation. If no explicit user decision is already available and those documents are missing, ambiguous or contradictory, ask the user which architecture to follow before completing the spec. Do not infer the choice from source code, dependencies, Figma or installed skills.
+
+Record the selected architecture and its source (`path#section` or user decision) in the Architecture note, with the state ownership, navigation and dependency boundaries needed for this feature. Code may confirm implementation details within that choice. There is no default architecture or mandatory reducer / Store structure; copy and asset conventions still follow the project.
 
 ## Workflow
 
@@ -46,7 +51,7 @@ Template: `templates/SPEC.template.md` (canonical structure).
    - **Asset inventory:** node-ids of icons, photos and illustrations that stage 2 will feed to
      `import-figma-assets`; classify raster vs vector; propose an asset name. Mark a complex masked
      illustration as "flatten export".
-   - Draft logic: State / Actions / Navigation / Data-API=TBD.
+   - Draft logic: State / Actions / Navigation / Data-API=TBD. State and Actions describe data and interactions conceptually; they do not prescribe framework types or an architecture.
    - `View: _TBD_ (suggested <Name>View)`.
    - Implementation task checklist (what to build, which states, which assets).
 5. **Navigation map (mermaid)** — from frame order, names and CTA buttons. Mark guessed edges with `?`.

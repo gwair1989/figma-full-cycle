@@ -1,0 +1,12 @@
+{
+  "name": "figma-full-cycle-local",
+  "interface": { "displayName": "Figma Full Cycle" },
+  "plugins": [
+    {
+      "name": "figma-full-cycle",
+      "source": { "source": "local", "path": "./" },
+      "policy": { "installation": "AVAILABLE", "authentication": "ON_INSTALL" },
+      "category": "Developer Tools"
+    }
+  ]
+}

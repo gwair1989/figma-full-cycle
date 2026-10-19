@@ -14,6 +14,11 @@ Exit point: {{EXIT_POINT}}.
 
 ## Architecture note
 
+<!-- Required: the architecture selected by project documentation or the user, its source
+(path#section or recorded user decision), and the relevant state, navigation and dependency
+boundaries. Resolve missing or conflicting documentation with the user before completing the spec;
+do not choose a pattern from code or installed skills. State / Actions below are conceptual,
+not mandatory framework types. -->
 {{ARCH_NOTE}}
 
 ---
@@ -62,4 +67,4 @@ field dependencies, what ships as a stub, back behavior, how the flow is exited.
 
 - **Stage 1 (now):** approve this spec plus the answers to the open questions.
 - **Stage 2:** implement the UI (SwiftUI) screen by screen → import assets, fill in the real `View` names.
-- **Stage 3:** logic — reducers, services, permissions, API and reference data, submit.
+- **Stage 3:** business logic under the resolved architecture — services, permissions, API and reference data, submit.

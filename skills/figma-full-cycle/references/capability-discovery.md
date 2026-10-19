@@ -2,7 +2,7 @@
 
 Read in full during preflight, before the Figma access probe and before any stage. This contract decides **which concrete tool does the work of each stage**. The skill binds *roles*, not names: the catalog installed on the machine running the feature is the authority, and it changes between runs — vendors ship new skills and MCP tools, users rename and namespace them, plugins add prefixes.
 
-Only the skills shipped inside this repository are pinned by name. Everything else is discovered at run time or replaced by the role's documented fallback.
+Only the skills shipped inside this repository are pinned by identity. Resolve their actual registered names from the live catalog, including plugin namespaces, and keep those exact names in the ledger. Do not substitute an unrelated same-named skill. Everything else is discovered at run time or replaced by the role's documented fallback.
 
 ## Principles
 
@@ -15,7 +15,9 @@ Only the skills shipped inside this repository are pinned by name. Everything el
 
 ## Order
 
-Preflight runs: read the adapter → **discovery sweep** → project UI convention audit → read the acquisition contract → parse `fileKey`/`node-id` locally → **Figma access probe** (auth, then reachability on the parsed node) → the rest of the input validation → worktree → ledger into the manifest.
+Preflight runs: read the adapter → **discovery sweep** → resolve the project architecture and audit UI conventions → read the acquisition contract → parse `fileKey`/`node-id` locally → **Figma access probe** (auth, then reachability on the parsed node) → the rest of the input validation → worktree → ledger into the manifest.
+
+The sweep collects architecture candidates; bind `app-architecture` only after the [project architecture contract](../SKILL.md#project-architecture--documentation-or-user-decision) is resolved from project documentation or a user decision. Missing, ambiguous or contradictory documentation requires a user answer, not inference from code or the tool catalog.
 
 The sweep is free (listing and reading descriptions). The access probe costs at most one `whoami` plus the `get_metadata(parent)` call the acquisition read order already spends.
 
@@ -58,6 +60,7 @@ Each role is a slot. `pinned` roles are satisfied by this repository and are nev
 |---|---|---|---|---|
 | `feature-spec` | Figma frame → written feature spec + node inventory | pinned: `figma-feature-spec` | 1 | blocker (repo broken) |
 | `asset-import` | exact Figma node bytes → project asset catalog, vector preserved, raster variants complete | pinned: `import-figma-assets` | 2 | blocker (repo broken) |
+| `physical-device-control` | physical iPhone walkthroughs, Device Hub input recovery, screenshots and logs | bundled `device-usage`, only when physical checks are requested | 5–7 (conditional) | report missing device skill / desktop control; preserve CLI diagnostics and mark required UI checks blocked |
 | `strings-inspection` | read-only localization inventory / lookup / diff / validate | pinned: `scripts/localization_context.py` | preflight, 3, 8 | blocker |
 | `ui-plan-validation` | UI Plan schema + phase gates | pinned: `scripts/ui_plan.py` | 1, 3, 7 | blocker |
 | `layout-color-guard` | mechanical LAY/COL detection over the feature's changed files | the project's own guard when documentation names one, else pinned: `scripts/ui_guard.py` | 3, 8 | blocker (repo broken) |
@@ -67,8 +70,8 @@ Each role is a slot. `pinned` roles are satisfied by this repository and are nev
 | `design-to-code-workflow` | the design vendor's own required workflow for translating design context into code; the name that must be declared when the vendor's read tools log it | discovered, `vendor-official` preferred | 1, 3 | never fake the declaration: use the discovered generic implementation skill, else the UI Plan + project contract path, and record `degraded` |
 | `platform-design-translator` | translating design context into the project's UI framework idiom | discovered | 3 | generic implementation skill + the project's UI skills |
 | `platform-ui-idiom` | idiomatic construction, composition and state flow for the project's UI stack | discovered | 3, 4 | project documentation + existing screens as precedent, bounded by the resolved contracts |
-| `app-architecture` | the project's architecture pattern: state, actions, effects, dependencies | discovered, matched to the stack found in the project audit | 3, 7 | the project's existing architecture, read from code and docs |
-| `test-authoring` | tests for that stack, including effect/cancellation coverage | discovered | 7 | the project's existing test conventions |
+| `app-architecture` | the resolved architecture's state ownership, interactions, navigation and dependencies | discovered, compatible with the documented or user-confirmed architecture | 3, 7 | implement directly under the resolved architecture contract; unresolved architecture → ask the user |
+| `test-authoring` | tests for that stack, including async-work / cancellation coverage where applicable | discovered | 7 | the project's existing test conventions |
 | `view-refactor` | splitting and cleaning up oversized views | discovered | 4 (conditional) | skip the stage; record why |
 | `visual-comparison` | design screenshot vs implementation screenshot comparison with a findings report | discovered | 5 | manual comparison against the parent-frame screenshot per stage 5 rules, evidence stored the same way |
 | `code-review` | review of the changed files for the project's language and stack | discovered; a generic review command counts | 8 | the agent's built-in review path; never skip the stage |
@@ -77,9 +80,11 @@ Each role is a slot. `pinned` roles are satisfied by this repository and are nev
 
 Roles bound to the same concrete tool are fine; one skill may cover several roles. One role bound to several tools requires a single choice — record the losers as alternates, not as a second binding.
 
+`physical-device-control` is omitted from the required role set when no physical checks are requested. Its discovery does not access a device. Follow [`device-validation.md`](device-validation.md) when activated; it complements the simulator `build-run` role.
+
 ## 4. Selection rule
 
-When several candidates match a role:
+First filter candidates against the resolved project contracts. An architecture skill for a different pattern is ineligible, regardless of its publisher or availability. When several eligible candidates match a role:
 
 1. pinned repository skill (only for pinned roles);
 2. `vendor-official` for the system the role drives;

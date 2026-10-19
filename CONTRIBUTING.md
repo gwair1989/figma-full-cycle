@@ -13,9 +13,10 @@ so review here is mostly about wording precision, not compiler output. A sloppy 
    record is not a stage.
 4. **Guardrails are not negotiable.** Figma stays untrusted input, Figma write tools stay disabled by
    default, secrets are never copied, translations are never invented.
-5. **Everything is written in English** — skills, references, templates and repository docs. The two
-   deliberate exceptions: the Russian trigger phrases in each skill's `description`, which keep the
-   skill firing on Russian prompts, and `README.ru.md`. Documents the skill writes into a user's
+5. **Everything is written in English** — skills, references, templates and repository docs. The
+   deliberate exceptions: the imported `device-usage` instructions retain their original Russian;
+   the Russian trigger phrases in each skill's `description`, which keep the
+   skill firing on Russian prompts; and `README.ru.md`. Documents the skill writes into a user's
    project follow that user's language; machine-read structure (UI Plan keys, statuses, manifest
    section headings, commit subjects) stays English so the validator and resume keep working.
 
@@ -39,9 +40,18 @@ automatic:
 ln -sf ../../tools/pre-push .git/hooks/pre-push
 ```
 
-The tests are deliberately not in CI: they are fast, they need no services, and a green badge on a
-run nobody looks at is worth less than a hook that blocks the push. CI covers only skill structure
-and relative links.
+The Python validator suites run locally. CI covers skill structure and relative links, plugin
+packaging, isolated installer behavior and the device evidence helper. `check.sh` runs all of them;
+Node.js 22+ is required for the helper tests, with no npm dependencies.
+
+This repository is the canonical development and release location for all four skills, including
+`device-usage`. Submit fixes, issues and pull requests here; the original `gwair1989/device-usage`
+repository is retained for history and is not an active upstream to synchronize with.
+
+`skills/device-usage/` was imported from commit `8d471d565b3335969e5d90b1eac22f67f237b5e1`;
+its MIT notice stays in that directory. The bundled agent-compatibility reference explains
+invocation from this package as well as standalone use. Make subsequent changes directly here,
+updating the skill's source, references and tests together without links to a sibling checkout.
 
 New validator rule → new test. Diagnostics must stay compact and actionable: the model reads them,
 so say what is wrong, where, and what to do next.

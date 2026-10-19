@@ -6,8 +6,24 @@ versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-10-19
+
 ### Added
 
+- This repository is now the canonical development and release location for all four skills.
+  Device Usage remains independently installable; its original repository is retained for history.
+- A four-skill Codex plugin package: portable `plugin.json`, a Codex compatibility manifest and a
+  repo marketplace. Each skill remains separately invocable and available as a standalone directory.
+- Bundled `device-usage` from `gwair1989/device-usage` at
+  `8d471d565b3335969e5d90b1eac22f67f237b5e1`, including its MIT notice, references, optional Node
+  screenshot recorder and tests. The original checkout is not a runtime dependency. Its agent
+  compatibility notes now account for this bundle's namespace.
+- Optional `physical-device-control` role for requested Device Hub checks in stages 5–7, with
+  reviewed native screenshot evidence and route coverage separate from the simulator matrix.
+  Pipeline schema 15 adds physical-device results; hardware identifiers remain in local runtime.
+- Repeatable `install.sh --skill NAME` selection. Installing the full cycle includes its two
+  required companions; selected uninstall preserves shared companions. Package and installer tests
+  and the device recorder tests run in `check.sh` and CI.
 - `scripts/ui_guard.py` — the LAY and COL detections as a real command instead of prose: reports
   `path:line: RULE-ID: message` over the feature's changed files, so a gate costs findings rather
   than a read of the diff. Covers LAY-01…LAY-04, LAY-08…LAY-10, COL-01, COL-02, COL-04 and COL-05
@@ -211,6 +227,15 @@ versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Removed the TCA default from the full cycle, adapters, stage instructions, spec template and
+  READMEs. Preflight now resolves the feature's architecture from project documentation or an
+  explicit user decision; missing, ambiguous or contradictory documentation requires a user
+  answer, including in `ui-first`. Source code and installed skills cannot select the architecture.
+  Stage 3 builds the chosen architecture's UI/state interfaces; stage 7 implements business logic
+  through them. Standalone `figma-feature-spec` follows the same rule.
+- Pipeline manifest template `pipeline_schema_version: 14`: adds a Project architecture contract
+  with the selected architecture, scope, source and integration boundaries. Resume resolves missing
+  contracts in older manifests and invalidates dependent evidence when the decision changes.
 - Preflight no longer reads the Layout, Colors and Strings contracts. The audit resolves its six
   rows from the baseline digests in `project-ui-conventions.md`; each contract is read in full at the
   stage that enforces it (Strings at 1, Layout and Colors at 3), with an escape hatch for a row the
@@ -283,5 +308,6 @@ First public release.
   implementation checklist.
 - `install.sh` for symlink or copy installation into any agent skills directory.
 
-[Unreleased]: https://github.com/gwair1989/figma-full-cycle/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/gwair1989/figma-full-cycle/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/gwair1989/figma-full-cycle/releases/tag/v1.1.0
 [1.0.0]: https://github.com/gwair1989/figma-full-cycle/releases/tag/v1.0.0

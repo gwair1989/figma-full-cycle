@@ -1,8 +1,7 @@
 name: CI
 
-# Validator tests run locally — see ./check.sh and tools/pre-push.
-# CI only guards what a reviewer cannot eyeball in a diff: skill structure and
-# relative links across every skill document.
+# Python validator suites run locally — see ./check.sh and tools/pre-push.
+# CI checks package/installer behavior, the portable evidence helper, and skill structure.
 
 on:
   push:
@@ -23,3 +22,10 @@ jobs:
         run: python3 tools/lint_skills.py
       - name: Check shell script syntax
         run: bash -n install.sh && bash -n check.sh
+      - name: Check plugin package and standalone installation
+        run: python3 -m unittest discover -s tools/tests
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Test device screenshot evidence recorder
+        run: node --test skills/device-usage/scripts/capture-evidence.test.mjs

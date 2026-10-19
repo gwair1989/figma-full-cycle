@@ -19,6 +19,7 @@ Maps the core capabilities (`../SKILL.md`) onto Claude Code tools.
 | Build / test / run | `build_sim` / `test_sim` / `build_run_sim` (boots the simulator itself) |
 | List simulators | `list_sims`; set `simulatorId` (UDID) in defaults, never a name |
 | Simulator UI input | `snapshot_ui` → `tap`/`swipe` by `elementRef` (coordinates are not accepted) |
+| Physical iPhone control | bundled `device-usage` via its discovered name; use available desktop Computer Use and the skill's CLI workflow, never simulator-only input tools |
 | Figma read acquisition | `get_metadata` once for the parent map; scoped `get_design_context` as the primary child read; `get_screenshot`, `get_variable_defs`, optional `get_code_connect_map` / `get_motion_context` only for evidence gaps; `download_assets` at stage 2 |
 | Figma write boundary | never call `use_figma`, `add_code_connect_map`, `send_code_connect_mappings`, `upload_assets`, `create_new_file`, `generate_figma_design` without a separate explicit user request to modify Figma |
 | Compact Strings inspection | `python3 <skill-root>/scripts/localization_context.py` (read-only `inventory/lookup/diff/validate`; root = the repo or owning scope) |
@@ -34,10 +35,11 @@ Roles come from `../references/capability-discovery.md`. Only the pinned rows ar
 | 1 | `feature-spec` | pinned `figma-feature-spec` | — |
 | 1, 2, 3, 5 | `design-source-read` | the Figma MCP toolset | no read path → blocker |
 | 2 | `asset-import` | pinned `import-figma-assets` | — |
+| 5–7, physical scope only | `physical-device-control` | bundled `device-usage`, exact registered name | report unavailable control; required physical UI checks stay blocked |
 | 1, 3 | `design-to-code-workflow` | the official Figma design→code skill, however it is registered (plain, namespaced `figma:…`, or `resource:…`) | absent → do not fake `skillNames`; use the registered generic implementation skill (`figma-implement-design` and the like) |
 | 3 | `platform-design-translator` | an official SwiftUI-specific Figma translator (`figma-swiftui` and the like) | generic binding + the project's UI skills |
 | 3, 4 | `platform-ui-idiom` | `pfw-modern-swiftui`, `swiftui-ui-patterns` | project documentation + precedent |
-| 3, 7 | `app-architecture` | `pfw-composable-architecture` (TCA projects) | the project's own architecture from code and docs |
+| 3, 7 | `app-architecture` | a discovered skill matching the documented or user-confirmed project architecture | implement the resolved architecture contract directly; unresolved → ask the user |
 | 4 | `view-refactor` | `swiftui-view-refactor` | skip the conditional stage, record why |
 | 5 | `visual-comparison` | `design-compare` | manual comparison under the stage 5 rules |
 | 7 | `test-authoring` | `pfw-testing` | the project's test conventions |
@@ -48,6 +50,7 @@ Stage 3 context stays `clientLanguages=swift`, `clientFrameworks=swiftui`; the e
 
 ## Preflight checklist
 
+- [ ] Project architecture is resolved from applicable documentation or an explicit user decision and ready for the manifest. Missing, ambiguous or contradictory documentation was raised with the user; code and installed skills did not choose the architecture. Bind `app-architecture` only after this resolution, including in `ui-first`.
 - [ ] `../references/capability-discovery.md` has been read in full; the sweep ran over skills / MCP tools / MCP resources / plugins / project-local scripts, and every role is bound, fallen back, or listed in the single blocker batch.
 - [ ] Before any Figma call, the read-only audit of Strings / Typography / Colors / Images / Accessibility per `../references/project-ui-conventions.md` is done; the five contract lines are ready to move into the manifest. For Strings, documentation was read and the contract resolved from `../references/strings-workflow.md` first, then one compact inventory without a catalog dump. Accessibility without an explicit requirement → `skill-fallback: no-add`.
 - [ ] `../references/figma-mcp-acquisition.md` has been read in full; transport / read capabilities / optional capabilities / target / write=`disabled` are ready for the manifest.

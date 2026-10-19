@@ -6,8 +6,8 @@ Maps the core capabilities (`../SKILL.md`) onto Codex. `AGENTS.md` and the Codex
 
 | Capability | Codex |
 |---|---|
-| Call a sub-skill | a skill from the `~/.codex/skills` catalog, by the exact catalog name (namespaced entries keep their `catalog:skill` form) |
-| Enumerate skills | list `~/.codex/skills` (follow symlinks into `~/.shared-skills`) and read each `SKILL.md` front matter for name + description |
+| Call a sub-skill | a skill from the current session's live catalog, by its exact registered name; bundled identities keep the plugin namespace when registered that way |
+| Enumerate skills | use the session's available-skills catalog first, including plugins; inspect configured user/project skill directories and plugin resources only to resolve missing metadata, never assume one installation path |
 | Enumerate MCP tools / servers | `tool_search` per role keyword; the configured servers in the Codex MCP configuration; a server that does not answer counts as unavailable |
 | Enumerate project-local tooling | `AGENTS.md`, project docs, `Makefile` / scripts in the repository |
 | Check Figma MCP availability | `tool_search` for Figma tools → one `_whoami` as the auth probe → a real `_get_metadata` on the parsed parent node; record transport, identity and the actual capabilities in the ledger |
@@ -17,6 +17,7 @@ Maps the core capabilities (`../SKILL.md`) onto Codex. `AGENTS.md` and the Codex
 | Create/remove a worktree | `superpowers:using-git-worktrees` + verified `git worktree add/remove` |
 | Show/set build defaults | xcodebuildmcp `session_show_defaults` / `session_set_defaults` |
 | Build / test / run | `build_sim` / `test_sim` / `build_run_sim` |
+| Physical iPhone control | bundled `device-usage` via its discovered name; Device Hub through available desktop Computer Use, with device CLI diagnostics per that skill; never pass physical IDs to simulator tools |
 | Figma read acquisition | `_get_metadata` once for the parent map; scoped `_get_design_context` as the primary child read; `_get_screenshot`, `_get_variable_defs`, optional `_get_code_connect_map` / `_get_motion_context` only for evidence gaps; `_download_assets` at stage 2. Find the actual server prefix with `tool_search` |
 | Figma write boundary | never call `_use_figma`, `_add_code_connect_map`, `_send_code_connect_mappings`, `_upload_assets`, `_create_new_file`, `_generate_figma_design` without a separate explicit user request to modify Figma |
 | Compact Strings inspection | `python3 <skill-root>/scripts/localization_context.py` (read-only `inventory/lookup/diff/validate`; root = the repo or owning scope) |
@@ -25,18 +26,19 @@ Maps the core capabilities (`../SKILL.md`) onto Codex. `AGENTS.md` and the Codex
 
 ## Role bindings (Codex names)
 
-Roles come from `../references/capability-discovery.md`. Only the pinned rows are fixed; the rest are **candidates seen in Codex catalogs**, where namespacing differs from Claude Code. Verify each against the actual `~/.codex/skills` listing and bind whatever covers the role best this run.
+Roles come from `../references/capability-discovery.md`. Only the pinned identities are fixed; the rest are **candidates seen in Codex catalogs**, where namespacing differs from Claude Code. Verify each against the live session catalog, including plugin entries, and bind whatever covers the role best this run.
 
 | Stage | Role | Candidates seen in Codex catalogs | Fallback |
 |---|---|---|---|
-| 1 | `feature-spec` | pinned `figma-feature-spec` (symlink into `~/.shared-skills`) | — |
+| 1 | `feature-spec` | bundled `figma-feature-spec`, exact registered name | — |
 | 2 | `asset-import` | pinned `import-figma-assets` | — |
+| 5–7, physical scope only | `physical-device-control` | bundled `device-usage`, exact registered name | report unavailable control; required physical UI checks stay blocked |
 | 1, 3 | `design-to-code-workflow` | the official Figma design→code skill under its catalog name or namespaced alias | absent → do not fake `skillNames`; use the registered generic implementation skill (`figma-implement-design` and the like) |
 | 3 | `platform-design-translator` | an official SwiftUI-specific Figma translator | generic binding + the UI skills below |
 | 3, 4 | `platform-ui-idiom` | `build-ios-apps:swiftui-ui-patterns` | project documentation + precedent |
 | 4 | `view-refactor` | `build-ios-apps:swiftui-view-refactor` | skip the conditional stage, record why |
 | 5 | `visual-comparison` | `design-compare:design-compare` | manual comparison under the stage 5 rules |
-| 3, 7 | `app-architecture` | the TCA skill registered in the catalog | the project's own architecture from code and docs |
+| 3, 7 | `app-architecture` | a discovered skill matching the documented or user-confirmed project architecture | implement the resolved architecture contract directly; unresolved → ask the user |
 | 7 | `test-authoring` | the stack's testing skill | the project's test conventions |
 | 8 | `code-review` | `swift-code-reviewer` | an available `gsd-code-review`, else a manual review pass |
 | 0, 3, 5–8 | `build-run` | xcodebuildmcp | the project's own build commands |
@@ -49,6 +51,7 @@ Inside the current request — `collaboration.spawn_agent`. Separate Codex tasks
 
 ## Preflight checklist
 
+- [ ] Project architecture is resolved from applicable documentation or an explicit user decision and ready for the manifest. Missing, ambiguous or contradictory documentation was raised with the user; code and installed skills did not choose the architecture. Bind `app-architecture` only after this resolution, including in `ui-first`.
 - [ ] `../references/capability-discovery.md` has been read in full; the sweep ran over the skills catalog / MCP tools / project-local tooling, and every role is bound, fallen back, or listed in the single blocker batch.
 - [ ] Before any Figma call, the read-only audit of Strings / Typography / Colors / Images / Accessibility per `../references/project-ui-conventions.md` is done; the five contract lines are ready to move into the manifest. For Strings, documentation was read and the contract resolved from `../references/strings-workflow.md` first, then one compact inventory without a catalog dump. Accessibility without an explicit requirement → `skill-fallback: no-add`.
 - [ ] `../references/figma-mcp-acquisition.md` has been read in full; transport / read capabilities / optional capabilities / target / write=`disabled` are ready for the manifest.

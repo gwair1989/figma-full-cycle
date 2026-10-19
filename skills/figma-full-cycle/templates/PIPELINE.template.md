@@ -1,7 +1,7 @@
 # <FEATURE> — Pipeline manifest
 
 > The full cycle's source of truth. Only the main thread of the `figma-full-cycle` skill writes here.
-> pipeline_schema_version: 13
+> pipeline_schema_version: 15
 > run_id: <RUN_ID> <!-- date+slug; new on a fresh start, preserved across resume -->
 > Figma: <FIGMA_URL>
 > Figma pin: fileKey=<KEY> node=<NODE> version=<VERSION_OR_HASH> checked_at=<TS>
@@ -15,7 +15,7 @@
 
 ## Capability ledger (preflight)
 
-> Fill per `references/capability-discovery.md` before the project audit. Names go in **exactly as registered** (keep plugin/namespace/resource prefixes). Roles, not names, are what the stages depend on.
+> Start during discovery per `references/capability-discovery.md`; finalize `app-architecture` only after the Project architecture contract is resolved. Names go in **exactly as registered** (keep plugin/namespace/resource prefixes). Roles, not names, are what the stages depend on.
 > Swept: at=<TS> agent=<AGENT>
 
 | Role | Binding (exact registered name / path) | Kind / origin | Capability evidence | Status | Stages |
@@ -40,6 +40,8 @@
 
 Statuses: `ready / degraded / fallback / blocked / stale`. A stage does not start while one of its roles is `blocked` or `stale`. `degraded` and `fallback` do not block, but the affected gate evidence says so. Alternates that lost the selection go in the evidence cell, never as a second binding.
 
+Bundled skill identities use the exact registered invocation name, including plugin namespaces. Add a `physical-device-control` row bound to `device-usage` only when physical iPhone checks are requested; its absence is not a simulator-only blocker.
+
 ### Figma access probe
 
 | Probe | Result | Evidence | Status |
@@ -53,6 +55,20 @@ Statuses: `ready / degraded / fallback / blocked / stale`. A stage does not star
 | Write mode | `disabled` | | `ready` |
 | Stage 5 credential | `<FIGMA_ACCESS_TOKEN present / absent>` | presence only | `<ready / stage-5 blocker>` |
 | Call budget / rate limit | | | `<ready / degraded>` |
+
+## Project architecture contract (preflight)
+
+> Resolve before stage 1, including in `ui-first`. Project documentation or an explicit user decision selects the architecture; code and installed skills do not. Missing, ambiguous or contradictory documentation → ask the user. Reuse this decision in the spec and stages 3/7; pass it to refactor and review workers too.
+
+| Field | Resolved value | Source / evidence |
+|-------|----------------|-------------------|
+| Scope / architecture | `<target module; selected architecture>` | `<project document path#section or recorded user decision>` |
+| State / data flow | `<state owners; UI binding and interaction interfaces>` | |
+| Navigation | `<ownership and integration boundaries>` | |
+| Dependencies / async work | `<dependency access; external-work boundaries; testing approach>` | |
+| Resolution | `<resolved-from-docs / resolved-from-user / blocked / stale>` | `<checked_at; question-log reference when applicable>` |
+
+Only `resolved-from-docs` or `resolved-from-user` permits architecture-dependent work. On resume, re-read the recorded documentation and reconcile with the saved user decision; an absent contract must be resolved, including for older manifests. A changed decision marks the architecture binding, spec / UI Plan and affected gates `stale`. `manifest.py verify-sources` checks the separate UI contract below, not this record.
 
 ## Project UI convention contract (preflight)
 
@@ -149,11 +165,11 @@ Source statuses: `todo / reuse / new / TBD / implemented / verified`. Stage 1 cl
 | 0 | Worktree + toolchain | `todo` | pipeline(<FEATURE>): stage 0 | |
 | 1 | Spec + UI Plan | `todo` | pipeline(<FEATURE>): stage 1 | |
 | 2 | Assets | `todo` | pipeline(<FEATURE>): stage 2 | |
-| 3 | UI implementation + TCA skeleton | `todo` | pipeline(<FEATURE>): stage 3 | |
+| 3 | UI implementation + architecture skeleton | `todo` | pipeline(<FEATURE>): stage 3 | |
 | 4 | UI refactor (conditional) | `todo` | pipeline(<FEATURE>): stage 4 | `skipped` when there are no findings |
 | 5 | Design comparison | `todo` | pipeline(<FEATURE>): stage 5 | |
 | 6 | Adaptivity | `todo` | pipeline(<FEATURE>): stage 6 | |
-| 7 | Reducer logic | `todo` | pipeline(<FEATURE>): stage 7 | `waiting_user` (waiting for requirements) in ui-first |
+| 7 | Business logic | `todo` | pipeline(<FEATURE>): stage 7 | `waiting_user` (waiting for requirements) in ui-first |
 | 8 | Final | `todo` | pipeline(<FEATURE>): stage 8 | |
 
 Statuses: `todo / in_progress / blocked / waiting_user / ready_to_commit / done / stale / skipped / waived`.
@@ -161,6 +177,14 @@ Statuses: `todo / in_progress / blocked / waiting_user / ready_to_commit / done 
 Resume: reconcile with git first — `HEAD`, dirty/untracked, `git log --grep "pipeline(<FEATURE>)"`. `ready_to_commit` + a commit exists → `done`; no commit → commit it. Then take the first stage that is neither `done` nor `skipped` → the first open row of its sub-checklist. Never store a SHA in the manifest — recover it from the subject.
 
 The commit subject in the table is the **actual** one from git; one stage = one commit (squashing breaks resume).
+
+## Physical device checks (only when requested)
+
+> Scope: `<not-requested / user request / project requirement>`. Follow `references/device-validation.md`; one connected phone does not cover the full adaptivity matrix. Keep hardware identifiers and private data in the local runtime/cache, not this table. A required blocked, failed, not-run or stale row keeps its stage open.
+
+| Stage / route | Required | Target alias / app build / channel | Expected / observed result | Status / coverage | Reviewed evidence / report |
+|---------------|----------|-----------------------------------|----------------------------|-------------------|----------------------------|
+| | `<yes / no>` | | | `<passed / failed / blocked / not-run / stale>; <full / partial / none>` | `<local artifact path; capture source; dimensions>` |
 
 ## Gate evidence
 

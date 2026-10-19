@@ -1,0 +1,4 @@
+interface:
+  display_name: "Figma Feature Spec"
+  short_description: "Turn a Figma flow into a feature specification"
+  default_prompt: "Use $figma-feature-spec to write a specification for this Figma parent frame using the project's documented or user-confirmed architecture."

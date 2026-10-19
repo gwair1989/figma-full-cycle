@@ -4,12 +4,15 @@
 #   ./install.sh                          symlink into ~/.claude/skills
 #   ./install.sh --target ~/.codex/skills install for Codex
 #   ./install.sh --target .claude/skills  install for the current project only
+#   ./install.sh --skill device-usage     install one skill (repeatable)
 #   ./install.sh --copy                   copy instead of symlinking
 #   ./install.sh --force                  replace an existing entry; the old one is moved
 #                                         to ../.skill-backups next to the target directory
 #   ./install.sh --uninstall              remove entries this script installed
 #
 # Symlinks are the default: `git pull` then updates the installed skills in place.
+# Selecting figma-full-cycle also installs its spec and asset companions.
+# Uninstall removes only selected entries, never shared dependencies implicitly.
 
 set -euo pipefail
 
@@ -19,6 +22,7 @@ TARGET="${HOME}/.claude/skills"
 MODE="symlink"
 FORCE=0
 UNINSTALL=0
+SELECTED_SKILLS=()
 
 log()  { printf '%s\n' "$*"; }
 warn() { printf 'warning: %s\n' "$*" >&2; }
@@ -28,10 +32,12 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --target)    TARGET="${2:?--target needs a path}"; shift 2 ;;
     --target=*)  TARGET="${1#*=}"; shift ;;
+    --skill)     SELECTED_SKILLS+=("${2:?--skill needs a name}"); shift 2 ;;
+    --skill=*)   SELECTED_SKILLS+=("${1#*=}"); shift ;;
     --copy)      MODE="copy"; shift ;;
     --force)     FORCE=1; shift ;;
     --uninstall) UNINSTALL=1; shift ;;
-    -h|--help)   sed -n '2,12p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help)   sed -n '2,/^set -euo pipefail/{ /^set -euo pipefail/d; s/^# \{0,1\}//; p; }' "${BASH_SOURCE[0]}"; exit 0 ;;
     *)           die "unknown option: $1 (try --help)" ;;
   esac
 done
@@ -52,6 +58,33 @@ for path in "$SRC_DIR"/*/; do
   SKILLS+=("$(basename "$path")")
 done
 [ ${#SKILLS[@]} -gt 0 ] || die "no skills with a SKILL.md found in $SRC_DIR"
+
+if [ ${#SELECTED_SKILLS[@]} -gt 0 ]; then
+  # Validate the entire selection before touching the target directory.
+  for name in "${SELECTED_SKILLS[@]}"; do
+    found=0
+    for available in "${SKILLS[@]}"; do
+      [ "$name" != "$available" ] || found=1
+    done
+    [ "$found" -eq 1 ] || die "unknown skill: $name (available: ${SKILLS[*]})"
+  done
+  SKILLS=()
+  for name in "${SELECTED_SKILLS[@]}"; do
+    case " ${SKILLS[*]:-} " in *" $name "*) continue ;; esac
+    SKILLS+=("$name")
+  done
+  if [ "$UNINSTALL" -eq 0 ]; then
+    case " ${SKILLS[*]} " in
+      *" figma-full-cycle "*)
+        for name in figma-feature-spec import-figma-assets; do
+          [ -f "$SRC_DIR/$name/SKILL.md" ] || die "required companion missing: $name"
+          case " ${SKILLS[*]} " in *" $name "*) continue ;; esac
+          SKILLS+=("$name")
+        done
+        ;;
+    esac
+  fi
+fi
 
 if [ "$UNINSTALL" -eq 1 ]; then
   for name in "${SKILLS[@]}"; do
@@ -102,4 +135,4 @@ for name in "${SKILLS[@]}"; do
 done
 
 log ""
-log "Done. Start a new agent session and check that 'figma-full-cycle' is listed."
+log "Done. Start a new agent session and check these skills: ${SKILLS[*]}"
