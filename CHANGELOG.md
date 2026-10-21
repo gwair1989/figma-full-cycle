@@ -8,6 +8,14 @@ versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Device Usage now defines a focused check for one UI change, optional native hierarchy/hit-point
+  targeting, and exclusive input ownership when agents share a physical target. Device Hub stays
+  primary, iPhone Mirroring stays the fallback; subagents and Xcode MCP are not prerequisites.
+- Device Usage reports observation categories separately from route status and coverage. Its
+  route table now includes observation/category and all four scroll directions.
+- Horizontal scrolling guidance now separates contact drag from indirect scroll, bounds carousel
+  overshoot retries, and checks whether the active API can express horizontal input or held
+  Shift plus scroll in Mirroring.
 - Removed links to the former `gwair1989/device-usage` repository after its deletion. All four
   skills continue to be maintained here, with independent Device Usage installation preserved.
 

@@ -92,15 +92,29 @@ Error/Fault severity системного framework в процессе не я�
 
 ## Coverage manifest и баги
 
+### Категории наблюдений
+
+Категория описывает увиденное; статус `passed/failed/blocked/not-run` и coverage описывают проверку согласованного маршрута. Записывать их отдельно.
+
+| Категория | Что подтверждать |
+| --- | --- |
+| Функциональная ошибка | Устойчивое расхождение с ожидаемым действием/данными/навигацией при работающем канале ввода. Один no-op без контрольных действий ещё не устанавливает баг приложения. |
+| Визуальная ошибка | Наложение, обрезка, неверное расположение/цвет или нечитаемый текст после стабилизации UI; сохранить кадр и конфигурацию. Отмечать даже при работающей основной функции. |
+| Переходное состояние | Загрузка, анимация, появление клавиатуры. Получить следующее наблюдение; если ожидаемый переход не завершается в пределах сценария, зафиксировать невыполненное ожидание и исследовать причину. |
+| Ожидаемое поведение | Состояние соответствует согласованному сценарию. Empty state, disabled button или permission dialog не являются автоматически ошибкой или успехом: сравнить с ожидаемым поведением именно этого состояния. |
+| Неожиданное завершение | Приложение исчезло/процесс завершился вопреки сценарию. Сопоставить UI, PID и свежие логи; отдельно установить crash, Jetsam, системное завершение или запланированный relaunch. Смена PID сама по себе не доказывает crash. |
+
+При недоступном вводе, системном ограничении или непроверяемом конечном состоянии записать blocker и фактическое покрытие. Инфраструктурный blocker не превращать в функциональную ошибку приложения. Для подтверждённого расхождения использовать `failed`; для перехода до конечного наблюдения не назначать итоговый `passed`.
+
 ```markdown
 Run: <date/time/timezone>; device/iOS/macOS/Xcode/tools: <versions>
 App: <bundle ID/version/build/source>; install: <outcome/evidence>
 Initial state/data: <fixture or existing>; allowed changes: <scope>
 Hub/device configuration: <appearance/text size/accessibility/location/orientation; keyboard modes; relevant overrides>
 Logger: <source/session/verified freshness>
-| Route/state | Entry → exit | Checks, scroll ↓/↑ | Result | Evidence | Recovery/blocker |
-| --- | --- | --- | --- | --- | --- |
-| ... | ... | ... | passed/failed/blocked/not-run | ... | ... |
+| Route/state | Entry → exit | Checks, scroll ↓/↑/←/→ | Observation/category | Status/coverage | Evidence | Recovery/blocker |
+| --- | --- | --- | --- | --- | --- | --- |
+| ... | ... | ... | actual/category | passed/failed/blocked/not-run; actual coverage | ... | ... |
 Uncovered: <states and reasons>
 Final: <screen/data/build/configuration restored or remaining changes>; sessions: <stopped/remaining>; backups/cache: <disposition>
 ```
