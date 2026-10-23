@@ -1,7 +1,7 @@
 {
   "name": "figma-full-cycle",
   "version": "1.1.0",
-  "description": "Four separately invocable skills for Figma feature implementation, specifications, Xcode assets and physical iPhone testing through Device Hub.",
+  "description": "Six separately invocable skills for Figma implementation, specifications, Xcode assets, design comparison, SwiftUI adaptivity and physical iPhone testing.",
   "author": { "name": "gwair1989", "url": "https://github.com/gwair1989" },
   "homepage": "https://github.com/gwair1989/figma-full-cycle",
   "repository": "https://github.com/gwair1989/figma-full-cycle",
@@ -10,13 +10,15 @@
   "interface": {
     "displayName": "Figma Full Cycle",
     "shortDescription": "Figma workflows and Device Hub testing",
-    "longDescription": "Use the complete Figma implementation pipeline or invoke feature specifications, asset import and physical iPhone testing separately. Device Hub control uses the host's available desktop Computer Use tools.",
+    "longDescription": "Use the complete Figma pipeline or invoke specifications, asset import, design comparison, SwiftUI adaptivity and physical iPhone testing separately. Adaptivity works without Figma. Device Hub uses the host's available desktop Computer Use tools.",
     "developerName": "gwair1989",
     "category": "Developer Tools",
     "defaultPrompt": [
       "Implement this Figma flow using the project's documented architecture.",
       "Write a specification for this Figma parent frame.",
       "Import these Figma assets into the Xcode project.",
+      "Compare these implemented screens with their Figma design.",
+      "Check SwiftUI adaptivity across supported devices without requiring Figma.",
       "Test the installed app on the connected iPhone through Device Hub."
     ]
   }

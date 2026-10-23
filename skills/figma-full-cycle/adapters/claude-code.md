@@ -22,7 +22,7 @@ Maps the core capabilities (`../SKILL.md`) onto Claude Code tools.
 | Physical iPhone control | bundled `device-usage` via its discovered name; use available desktop Computer Use and the skill's CLI workflow, never simulator-only input tools |
 | Figma read acquisition | `get_metadata` once for the parent map; scoped `get_design_context` as the primary child read; `get_screenshot`, `get_variable_defs`, optional `get_code_connect_map` / `get_motion_context` only for evidence gaps; `download_assets` at stage 2 |
 | Figma write boundary | never call `use_figma`, `add_code_connect_map`, `send_code_connect_mappings`, `upload_assets`, `create_new_file`, `generate_figma_design` without a separate explicit user request to modify Figma |
-| Compact Strings inspection | `python3 <skill-root>/scripts/localization_context.py` (read-only `inventory/lookup/diff/validate`; root = the repo or owning scope) |
+| Compact Strings inspection | `python3 <shared-root>/scripts/localization_context.py` (read-only `inventory/lookup/diff/validate`; root = the repo or owning scope) |
 | UI Plan validation | `python3 <skill-root>/scripts/ui_plan.py validate --plan <PLAN> --manifest <MANIFEST> --project-root <REPO> --phase <ui\|production>` |
 | Finalize the branch | `superpowers:finishing-a-development-branch` — the user makes the choice (PR / merge / leave it) |
 
@@ -41,7 +41,8 @@ Roles come from `../references/capability-discovery.md`. Only the pinned rows ar
 | 3, 4 | `platform-ui-idiom` | `pfw-modern-swiftui`, `swiftui-ui-patterns` | project documentation + precedent |
 | 3, 7 | `app-architecture` | a discovered skill matching the documented or user-confirmed project architecture | implement the resolved architecture contract directly; unresolved → ask the user |
 | 4 | `view-refactor` | `swiftui-view-refactor` | skip the conditional stage, record why |
-| 5 | `visual-comparison` | `design-compare` | manual comparison under the stage 5 rules |
+| 5 | `visual-comparison` | bundled `figma-design-compare`, exact registered name | missing companion is a blocker; its internal reviewer fallback remains available |
+| 6 | `adaptivity-check` | bundled `swiftui-adaptivity-check`, exact registered name | missing companion is a blocker |
 | 7 | `test-authoring` | `pfw-testing` | the project's test conventions |
 | 8 | `code-review` | `swift-code-reviewer-skill` | `/code-review`, else the built-in review path |
 | 0, 3, 5–8 | `build-run` | xcodebuildmcp | the project's own build commands |
@@ -52,8 +53,8 @@ Stage 3 context stays `clientLanguages=swift`, `clientFrameworks=swiftui`; the e
 
 - [ ] Project architecture is resolved from applicable documentation or an explicit user decision and ready for the manifest. Missing, ambiguous or contradictory documentation was raised with the user; code and installed skills did not choose the architecture. Bind `app-architecture` only after this resolution, including in `ui-first`.
 - [ ] `../references/capability-discovery.md` has been read in full; the sweep ran over skills / MCP tools / MCP resources / plugins / project-local scripts, and every role is bound, fallen back, or listed in the single blocker batch.
-- [ ] Before any Figma call, the read-only audit of Strings / Typography / Colors / Images / Accessibility per `../references/project-ui-conventions.md` is done; the five contract lines are ready to move into the manifest. For Strings, documentation was read and the contract resolved from `../references/strings-workflow.md` first, then one compact inventory without a catalog dump. Accessibility without an explicit requirement → `skill-fallback: no-add`.
-- [ ] `../references/figma-mcp-acquisition.md` has been read in full; transport / read capabilities / optional capabilities / target / write=`disabled` are ready for the manifest.
+- [ ] Before any Figma call, the read-only audit of Layout / Strings / Typography / Colors / Images / Accessibility per `<shared-root>/references/project-ui-conventions.md` is done; the six contract lines are ready to move into the manifest. For Strings, documentation was read and the contract resolved from the shared convention baseline first, then one compact inventory without a catalog dump. Accessibility without an explicit requirement → `skill-fallback: no-add`.
+- [ ] `<shared-root>/references/figma-mcp-acquisition.md` has been read in full; transport / read capabilities / optional capabilities / target / write=`disabled` are ready for the manifest.
 - [ ] The Figma URL is parsed locally; `fileKey` and `node-id` are known before the first real call.
 - [ ] `design-to-code-workflow` and `platform-design-translator` were resolved independently against the live listing; the bound workflow skill is loaded before the first context call and only then appears in `skillNames`, spelled exactly as registered (with `resource:` when loaded as an MCP resource); otherwise a documented fallback was selected.
 - [ ] UI Plan template and validator are available; the self-check passes: `python3 <skill-root>/scripts/ui_plan.py validate --plan <skill-root>/templates/UI_PLAN.template.json --phase ui --allow-placeholders`.

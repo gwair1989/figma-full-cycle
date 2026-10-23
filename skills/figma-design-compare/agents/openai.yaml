@@ -1,0 +1,4 @@
+interface:
+  display_name: "Figma Design Compare"
+  short_description: "Compare implemented SwiftUI screens with Figma"
+  default_prompt: "Use $figma-design-compare to compare these implemented screens with the Figma design and save an evidence-backed report."

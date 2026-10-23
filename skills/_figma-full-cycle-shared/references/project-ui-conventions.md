@@ -2,7 +2,10 @@
 
 Read in full once during `figma-full-cycle` preflight. The goal is to discover the specific project's rules first, then map them onto the skill's baseline and record one resolved decision per area for implementation.
 
-These six UI areas are separate from the [project architecture contract](../SKILL.md#project-architecture--documentation-or-user-decision). Their `inferred-from-code` fallback does not authorize choosing an app architecture: that choice requires project documentation or a user decision.
+Standalone validators use the affected areas and report destination defined in
+[validation-context.md](validation-context.md). These six UI areas do not select architecture:
+their `inferred-from-code` fallback is not permission to choose it; architecture decisions require
+project documentation or a user decision.
 
 ## 1. Find the project's sources
 
@@ -64,7 +67,10 @@ Permitted statuses:
 
 ### Images baseline
 
-- Calling `import-figma-assets` and following its full flow is mandatory. This section only ties the sub-skill to the contract; it does not replace it.
+- Read-only validators inspect existing image conventions and resources; they do not import or
+  export assets just to perform a check. No asset-import skill is needed for inspection.
+- For implementation or an authorized asset import/replacement, call `import-figma-assets` and
+  follow its full flow and the import rules below. Missing importer blocks that fix, not inspection.
 - Follow the project's catalog, naming, namespace, generated accessor, rendering intent and variant conventions first.
 - Keep vectors as vectors; export bitmaps and effects from the exact node as a verified 3× raster and build correct 1×/2×/3× slots. Never use an inspection screenshot as a production asset.
 - Do not collapse light/dark, language-direction, device or other non-accessibility variants. Import high-contrast and other accessibility-specific variants or labels only when Accessibility scope is active; pass that restriction into `import-figma-assets`. Verify `Contents.json`, sizes and transparency, qualified-name conflicts, the build and the visual result.
@@ -89,6 +95,12 @@ Permitted statuses:
 5. Once resolved, record the outcome in the manifest so that a worker or subagent receives an already-resolved contract instead of choosing a convention on its own.
 
 ## 4. Resume and stale
+
+**Standalone validation:** record source paths and `checked_at` in the report. On a later check,
+re-read the relevant sources and invalidate affected evidence when they changed. Git history,
+`STRINGS_BASE_SHA` and the pipeline's `manifest.py` helper are not standalone prerequisites.
+
+**Pipeline only:** use the digest protocol below with the orchestrator's own `scripts/manifest.py`.
 
 Record the base SHA and `checked_at`, and every source as `path#section @ <digest>` — the first 12 hex characters of its SHA-256, from `scripts/manifest.py digest`. For Strings, additionally store `STRINGS_BASE_SHA`, the compact inventory summary and the feature keys.
 

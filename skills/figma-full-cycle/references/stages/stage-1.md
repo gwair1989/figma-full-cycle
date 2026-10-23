@@ -1,6 +1,6 @@
 # Stage 1 — Spec + UI Plan
 
-**Read before starting** (skip what the session already holds): [`../ui-plan-contract.md`](../ui-plan-contract.md); [`../strings-workflow.md`](../strings-workflow.md) unless the Strings row resolved `not-applicable`. The acquisition contract was read at preflight.
+**Read before starting** (skip what the session already holds): [`../ui-plan-contract.md`](../ui-plan-contract.md); [`../strings-workflow.md`](../../../_figma-full-cycle-shared/references/strings-workflow.md) unless the Strings row resolved `not-applicable`. The acquisition contract was read at preflight.
 
 ## Role binding
 

@@ -20,6 +20,7 @@ DESCRIPTION_RE = re.compile(r"^description:\s*(.+?)\s*$", re.MULTILINE)
 SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
 LINK_RE = re.compile(r"\[[^\]]*\]\(([^)\s]+)\)")
 MAX_DESCRIPTION = 1024
+SHARED_DIR = SKILLS_DIR / "_figma-full-cycle-shared"
 
 
 def frontmatter(text: str) -> str | None:
@@ -63,7 +64,13 @@ def check_skill(skill_dir: Path) -> list[str]:
             f"(limit {MAX_DESCRIPTION})"
         )
 
-    for doc in sorted(skill_dir.rglob("*.md")):
+    errors.extend(check_links(skill_dir))
+    return errors
+
+
+def check_links(directory: Path) -> list[str]:
+    errors: list[str] = []
+    for doc in sorted(directory.rglob("*.md")):
         doc_rel = doc.relative_to(REPO_ROOT)
         for target in LINK_RE.findall(doc.read_text(encoding="utf-8")):
             if target.startswith(("http://", "https://", "mailto:", "#")):
@@ -83,7 +90,7 @@ def main() -> int:
         print(f"error: {SKILLS_DIR} not found", file=sys.stderr)
         return 1
 
-    skill_dirs = sorted(p for p in SKILLS_DIR.iterdir() if p.is_dir())
+    skill_dirs = sorted(p for p in SKILLS_DIR.iterdir() if p.is_dir() and p != SHARED_DIR)
     if not skill_dirs:
         print(f"error: no skills in {SKILLS_DIR}", file=sys.stderr)
         return 1
@@ -91,6 +98,8 @@ def main() -> int:
     errors: list[str] = []
     for skill_dir in skill_dirs:
         errors.extend(check_skill(skill_dir))
+    if SHARED_DIR.is_dir():
+        errors.extend(check_links(SHARED_DIR))
 
     if errors:
         for error in errors:

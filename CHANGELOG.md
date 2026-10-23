@@ -8,6 +8,17 @@ versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Extracted stages 5 and 6 into standalone `figma-design-compare` and `swiftui-adaptivity-check`.
+  Stage files now hand off to the bundled skills; pipeline schema 16 pins their role bindings.
+  Standalone checks write their own reports, need no pipeline manifest or UI Plan, and adaptivity
+  supports native screenshot review without Figma, a mock or `sips`.
+- Moved shared UI/Figma contracts and the read-only screenshot, UI guard and localization helpers
+  into `skills/_figma-full-cycle-shared/`, with one canonical copy. The installer adds these resources
+  for consuming skills, includes four companions for a full-cycle install and preserves shared
+  resources on uninstall. Plugin metadata and documentation now describe six entry points.
+- Aligned Figma Feature Spec instructions and template with the full-cycle stage numbers:
+  assets at stage 2, UI implementation at stage 3, and business logic at stage 7. The template
+  now lists the remaining stages through final review and the `ui-first` pause after stage 6.
 - Device Usage now defines a focused check for one UI change, optional native hierarchy/hit-point
   targeting, and exclusive input ownership when agents share a physical target. Device Hub stays
   primary, iPhone Mirroring stays the fallback; subagents and Xcode MCP are not prerequisites.

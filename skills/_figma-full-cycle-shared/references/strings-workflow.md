@@ -8,7 +8,7 @@ The goal is to follow the specific project's mechanism without loading whole `*.
 
 1. Project documentation decides the Strings mechanism. This workflow never picks the format, catalog/table, bundle, API, key style, extraction mode, generated symbols, source locale, locale set or translation owner on its own.
 2. Priority: applicable project instructions → project documentation → the Strings contract already resolved in the manifest → an unambiguous existing mechanism → the skill's baseline.
-3. The helper `scripts/localization_context.py` only reads and aggregates. It parses resource bytes locally but emits a bounded summary — catalog bytes never enter the model's context. The helper never modifies catalogs, never invents keys or translations, and never replaces the project build.
+3. The helper `<shared-root>/scripts/localization_context.py` only reads and aggregates. It parses resource bytes locally but emits a bounded summary — catalog bytes never enter the model's context. The helper never modifies catalogs, never invents keys or translations, and never replaces the project build.
 4. Never hand the model or a subagent a full catalog, a full catalog `git diff`, or all translations. By default only counts, targeted matches and a key-level diff are needed.
 5. Do not migrate `.strings` to `.xcstrings`, do not create a second localization path, and do not enable generated symbols or extraction settings inside a feature unless the project explicitly prescribes it.
 
@@ -38,7 +38,7 @@ Accessibility copy enters the Strings contract only under an active Accessibilit
 Once documentation is resolved, run one inventory from the repository root or the minimal owning scope:
 
 ```bash
-python3 <skill-root>/scripts/localization_context.py inventory --root <repo-or-owning-scope>
+python3 <shared-root>/scripts/localization_context.py inventory --root <repo-or-owning-scope>
 ```
 
 By default the command prints no keys and no values. Record only this in the manifest: paths/types, counts, source locale, locales, detected key style, variation and extraction-state counts, and parse errors. Do not use `--samples` unless concrete examples are needed for an unresolved contract point; then pass a small explicit number.
@@ -63,7 +63,7 @@ Deduplicate only identical meaning with identical translator context. The same t
 Run one lookup across all unique source values and known keys. For large sets, use a newline or JSON query file in the gitignored runtime rather than many separate searches:
 
 ```bash
-python3 <skill-root>/scripts/localization_context.py lookup \
+python3 <shared-root>/scripts/localization_context.py lookup \
   --root <repo-or-owning-scope> \
   --values-file <batched-values-file> \
   --keys-file <batched-keys-file> \
@@ -92,13 +92,13 @@ Pass only the Strings contract and its feature copy inventory rows into a worker
 After the batched change, check only the localization files touched since the stage's base SHA, and only the expected feature keys:
 
 ```bash
-python3 <skill-root>/scripts/localization_context.py diff \
+python3 <shared-root>/scripts/localization_context.py diff \
   --root <repo-or-owning-scope> \
   --base <STRINGS_BASE_SHA> \
   --entries-file <expected-path-qualified-entries-file> \
   --strict
 
-python3 <skill-root>/scripts/localization_context.py validate \
+python3 <shared-root>/scripts/localization_context.py validate \
   --root <repo-or-owning-scope> \
   --changed-from <STRINGS_BASE_SHA> \
   --xcode

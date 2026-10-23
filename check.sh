@@ -12,6 +12,7 @@ set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TESTS_DIR="$REPO_ROOT/skills/figma-full-cycle/scripts/tests"
+SHARED_TESTS_DIR="$REPO_ROOT/skills/_figma-full-cycle-shared/scripts/tests"
 QUICK=0
 FAILED=()
 
@@ -36,7 +37,7 @@ interpreters() {
 }
 
 while IFS=$'\t' read -r interpreter version; do
-  for test in "$TESTS_DIR"/test_*.py; do
+  for test in "$TESTS_DIR"/test_*.py "$SHARED_TESTS_DIR"/test_*.py; do
     step "$(basename "$test") — Python $version ($interpreter)"
     "$interpreter" "$test"
     record $? "$(basename "$test") (python $version)"

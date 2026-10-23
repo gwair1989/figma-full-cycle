@@ -22,7 +22,8 @@ so review here is mostly about wording precision, not compiler output. A sloppy 
 
 ## Working on the scripts
 
-`scripts/ui_plan.py` and `scripts/localization_context.py` are read-only CLIs on the Python standard
+`skills/figma-full-cycle/scripts/ui_plan.py` and the helpers under
+`skills/_figma-full-cycle-shared/scripts/` are read-only CLIs on the Python standard
 library. Keep it that way — the skill has to run wherever the agent runs, with no install step.
 
 Run the checks before opening a PR:
@@ -44,7 +45,7 @@ The Python validator suites run locally. CI covers skill structure and relative 
 packaging, isolated installer behavior and the device evidence helper. `check.sh` runs all of them;
 Node.js 22+ is required for the helper tests, with no npm dependencies.
 
-This repository is the canonical development and release location for all four skills, including
+This repository is the canonical development and release location for all six skills, including
 `device-usage`. Submit fixes, issues and pull requests here; the original `gwair1989/device-usage`
 repository was removed after consolidation. There is no separate upstream to synchronize with.
 
@@ -55,6 +56,11 @@ updating the skill's source, references and tests together without links to a si
 
 New validator rule → new test. Diagnostics must stay compact and actionable: the model reads them,
 so say what is wrong, where, and what to do next.
+
+Shared visual/UI contracts and helpers live only in `skills/_figma-full-cycle-shared/`.
+Stage 5/6 references hand off to the standalone companion skills; do not copy their workflow rules
+into adapters or templates. Keep standalone installs usable without the full-cycle skill or its
+manifest. Resource-only directories are not skill entry points; the linter checks their links.
 
 ## Working on the skill text
 

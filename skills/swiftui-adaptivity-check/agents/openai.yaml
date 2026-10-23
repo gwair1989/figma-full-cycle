@@ -1,0 +1,4 @@
+interface:
+  display_name: "SwiftUI Adaptivity Check"
+  short_description: "Check SwiftUI layouts across supported configurations"
+  default_prompt: "Use $swiftui-adaptivity-check to validate these screens across supported devices, text sizes, locales and keyboard states, without requiring Figma."

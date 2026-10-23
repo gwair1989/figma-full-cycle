@@ -5,10 +5,12 @@ Design source: Figma file `{{FILE_KEY}}` — frame `{{ROOT_NAME}}` (`{{ROOT_NODE
 Entry point: {{ENTRY_POINT}}.
 Exit point: {{EXIT_POINT}}.
 
+Stage numbers follow `figma-full-cycle`. Standalone use of `figma-feature-spec` produces only this spec.
+
 ## Legend
 
-- **View** — the SwiftUI View name. Filled in at stage 2 (after implementation). For now, the suggested name in parentheses.
-- **Logic** — a draft. `Data/API` marked `TBD` is detailed at stage 3 (logic and services).
+- **View** — the SwiftUI View name. Filled in at stage 3 (UI implementation). For now, the suggested name in parentheses.
+- **Logic** — a draft. `Data/API` marked `TBD` is detailed at stage 7 (business logic and services).
 - **Assets** — Figma node-ids for import via the `import-figma-assets` skill (stage 2).
 - Copy typos present in the design are marked `⚠️ typo`; the code uses the corrected strings through the centralized copy mechanism.
 
@@ -40,7 +42,7 @@ not mandatory framework types. -->
     - **Actions:** {{ACTIONS_DRAFT}}
     - **Navigation:** {{NAV_DRAFT}}
     - **Data/API:** TBD
-- **Implementation tasks (stage 2):**
+- **Implementation tasks (stage 3):**
     - [ ] {{LAYOUT_TASK}}
 
 ---
@@ -65,6 +67,13 @@ field dependencies, what ships as a stub, back behavior, how the flow is exited.
 
 ## Following stages
 
-- **Stage 1 (now):** approve this spec plus the answers to the open questions.
-- **Stage 2:** implement the UI (SwiftUI) screen by screen → import assets, fill in the real `View` names.
-- **Stage 3:** business logic under the resolved architecture — services, permissions, API and reference data, submit.
+- **Stage 1 (now):** complete this spec and resolve blocking questions; the full cycle also creates and validates the UI Plan.
+- **Stage 2:** import and validate assets from the node-id inventory.
+- **Stage 3:** implement the SwiftUI screens and architecture skeleton; fill in the real `View` names.
+- **Stage 4 (conditional):** refactor the UI when complexity, view size or lint findings require it.
+- **Stage 5:** compare the implemented screens with the pinned Figma design, including a non-reference device size.
+- **Stage 6:** validate adaptivity across the required devices, appearances, content sizes, locales and keyboard states.
+- **Stage 7:** implement business logic and runtime navigation under the resolved architecture; verify with tests.
+- **Stage 8:** complete final review, repeat affected checks and commit the clean checkpoint.
+
+In `ui-first` mode, stages 7–8 wait for requirements after stage 6.

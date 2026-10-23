@@ -11,13 +11,15 @@
 #   ./install.sh --uninstall              remove entries this script installed
 #
 # Symlinks are the default: `git pull` then updates the installed skills in place.
-# Selecting figma-full-cycle also installs its spec and asset companions.
+# Selecting figma-full-cycle also installs its four required companions.
+# Visual workflows include one _figma-full-cycle-shared resource directory (not a skill).
 # Uninstall removes only selected entries, never shared dependencies implicitly.
 
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SRC_DIR="$REPO_ROOT/skills"
+SHARED_NAME="_figma-full-cycle-shared"
 TARGET="${HOME}/.claude/skills"
 MODE="symlink"
 FORCE=0
@@ -76,7 +78,7 @@ if [ ${#SELECTED_SKILLS[@]} -gt 0 ]; then
   if [ "$UNINSTALL" -eq 0 ]; then
     case " ${SKILLS[*]} " in
       *" figma-full-cycle "*)
-        for name in figma-feature-spec import-figma-assets; do
+        for name in figma-feature-spec import-figma-assets figma-design-compare swiftui-adaptivity-check; do
           [ -f "$SRC_DIR/$name/SKILL.md" ] || die "required companion missing: $name"
           case " ${SKILLS[*]} " in *" $name "*) continue ;; esac
           SKILLS+=("$name")
@@ -84,6 +86,25 @@ if [ ${#SELECTED_SKILLS[@]} -gt 0 ]; then
         ;;
     esac
   fi
+fi
+
+# Validate resource dependencies before installing any selected entry.
+INSTALL_SHARED=0
+if [ "$UNINSTALL" -eq 0 ]; then
+  case " ${SKILLS[*]} " in
+    *" figma-full-cycle "*|*" figma-design-compare "*|*" swiftui-adaptivity-check "*)
+      INSTALL_SHARED=1
+      for resource in scripts/screenshot_diff.py scripts/ui_guard.py scripts/localization_context.py \
+        references/validation-context.md references/project-ui-conventions.md \
+        references/layout-adaptivity-contract.md references/colors-contract.md \
+        references/strings-workflow.md references/figma-mcp-acquisition.md; do
+        [ -f "$SRC_DIR/$SHARED_NAME/$resource" ] || die "required shared resource missing: $SHARED_NAME/$resource"
+        if [ "$FORCE" -eq 0 ] && { [ -e "$TARGET/$SHARED_NAME" ] || [ -L "$TARGET/$SHARED_NAME" ]; }; then
+          [ -f "$TARGET/$SHARED_NAME/$resource" ] || die "installed shared resources are incomplete; re-run with --force: $TARGET/$SHARED_NAME/$resource"
+        fi
+      done
+      ;;
+  esac
 fi
 
 if [ "$UNINSTALL" -eq 1 ]; then
@@ -103,12 +124,25 @@ fi
 
 mkdir -p "$TARGET"
 
-for name in "${SKILLS[@]}"; do
+# Resources are shared by consumers, so uninstall deliberately leaves them in place.
+ENTRIES=("${SKILLS[@]}")
+if [ "$INSTALL_SHARED" -eq 1 ]; then
+  ENTRIES=("$SHARED_NAME" "${ENTRIES[@]}")
+fi
+for name in "${ENTRIES[@]}"; do
   src="$SRC_DIR/$name"
   dest="$TARGET/$name"
 
   if [ -L "$dest" ] && [ "$(readlink "$dest")" = "$src" ]; then
-    log "up to date       $dest"
+    if [ "$MODE" = "copy" ]; then
+      # This link is ours and contains no user data. Detach it from the checkout
+      # when copy mode is requested, including a shared dependency installed earlier.
+      rm "$dest"
+      cp -R "$src" "$dest"
+      log "copied           $dest (converted owned symlink)"
+    else
+      log "up to date       $dest"
+    fi
     continue
   fi
 

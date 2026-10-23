@@ -12,9 +12,9 @@ From a link to the **parent frame of a feature in Figma**, generates a **written
 draft checklist of implementation tasks.
 
 **Three artifacts in one md:** (1) the screen spec following the template, (2) the asset inventory
-(node-ids for `import-figma-assets`), (3) the implementation task checklist for stage 2.
+(node-ids for `import-figma-assets`), (3) the implementation task checklist for stage 3.
 
-**Spec only. Do NOT write code or UI, do NOT import assets** — that is stage 2. Product decisions
+**Spec only. Do NOT write code or UI (stage 3), and do NOT import assets (stage 2).** Product decisions
 (whether a field is required, API vs static data, final navigation) are **never invented** — they go
 to "Open questions / assumptions".
 

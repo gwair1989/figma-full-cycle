@@ -1,6 +1,10 @@
 # Figma MCP acquisition contract
 
-Read in full before the first Figma call. Use it together with [`capability-discovery.md`](capability-discovery.md) and the adapter capability map; the tools actually discovered this run outrank any static list, including the tool names used as examples here.
+Read in full before the first Figma call. In the pipeline, reuse capability discovery and the
+adapter map. Standalone validators discover the actual tools and record them in the report under
+[validation-context.md](validation-context.md). Discovered capabilities outrank static examples.
+Implementation/UI Plan obligations below apply only when implementing; validation records the
+design evidence it needs without creating a plan, new mappings or product behavior.
 
 ## Authority boundary
 
@@ -12,7 +16,8 @@ Read in full before the first Figma call. Use it together with [`capability-disc
 
 ## Capability preflight
 
-Runs as part of the Figma access probe in [`capability-discovery.md`](capability-discovery.md). Record in the manifest:
+In the pipeline this is the Figma access probe; standalone use records the same evidence in its
+report. Reuse existing current authentication and pin evidence rather than probing twice:
 
 0. Authentication: one `whoami` before the first read, as the preflight identity probe. Unauthenticated, expired or wrong-account → blocker naming what the user must do; never print, log or ask for a token value. Reuse the same call's answer for a later access/permission/rate-limit diagnosis instead of spending a second one.
 1. Transport: `remote` or `desktop`; remote requires a URL/node, desktop may use the selection, but pin the resulting parent `fileKey`/`nodeId` either way.

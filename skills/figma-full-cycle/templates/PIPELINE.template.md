@@ -1,7 +1,7 @@
 # <FEATURE> — Pipeline manifest
 
 > The full cycle's source of truth. Only the main thread of the `figma-full-cycle` skill writes here.
-> pipeline_schema_version: 15
+> pipeline_schema_version: 16
 > run_id: <RUN_ID> <!-- date+slug; new on a fresh start, preserved across resume -->
 > Figma: <FIGMA_URL>
 > Figma pin: fileKey=<KEY> node=<NODE> version=<VERSION_OR_HASH> checked_at=<TS>
@@ -11,6 +11,7 @@
 > UI Plan: docs/<FEATURE>_UI_PLAN.json schema=1 sha256=<SHA256> validated_at=<TS> phase=<ui|production> status=<todo|valid|stale>
 > Mode: <full | ui-first (stop before logic, waiting for requirements)>
 > Readiness: <production-ready | prototype/UI-only (user's choice) | TBD>
+> Shared resources: <shared-root> = installed sibling _figma-full-cycle-shared (not a skill)
 > Runtime (gitignored, never in a PR): docs/<FEATURE>_PIPELINE.local.md
 
 ## Capability ledger (preflight)
@@ -22,11 +23,11 @@
 |------|----------------------------------------|---------------|---------------------|--------|--------|
 | `feature-spec` | `figma-feature-spec` | `skill / repo-internal` | pinned | `ready` | 1 |
 | `asset-import` | `import-figma-assets` | `skill / repo-internal` | pinned | `ready` | 2 |
-| `strings-inspection` | `scripts/localization_context.py` | `script / repo-internal` | pinned | `ready` | preflight, 3, 8 |
+| `strings-inspection` | `<shared-root>/scripts/localization_context.py` | `script / repo-internal` | pinned | `ready` | preflight, 3, 8 |
 | `ui-plan-validation` | `scripts/ui_plan.py` | `script / repo-internal` | pinned | `ready` | 1, 3, 7 |
-| `layout-color-guard` | `<project guard / scripts/ui_guard.py>` | `script / <project / repo-internal>` | | `todo` | 3, 8 |
+| `layout-color-guard` | `<project guard / shared ui_guard.py>` | `script / <project / repo-internal>` | | `todo` | 3, 8 |
 | `manifest-read` | `scripts/manifest.py` | `script / repo-internal` | pinned | `ready` | resume, 1–8 |
-| `screenshot-geometry` | `scripts/screenshot_diff.py` | `script / repo-internal` | pinned (needs `sips`) | `todo` | 5, 6 |
+| `screenshot-geometry` | `<shared-root>/scripts/screenshot_diff.py` | `script / repo-internal` | pinned (needs `sips`) | `todo` | 5, 6 |
 | `design-source-read` | | `mcp-tool / vendor-official` | | `todo` | 1, 2, 3, 5 |
 | `design-to-code-workflow` | | `<skill / mcp-resource> / <vendor-official / third-party>` | | `todo` | 1, 3 |
 | `platform-design-translator` | | | | `todo` | 3 |
@@ -34,7 +35,8 @@
 | `app-architecture` | | | | `todo` | 3, 7 |
 | `test-authoring` | | | | `todo` | 7 |
 | `view-refactor` | | | | `todo` | 4 |
-| `visual-comparison` | | | | `todo` | 5 |
+| `visual-comparison` | `figma-design-compare` | `skill / repo-internal` | pinned | `ready` | 5 |
+| `adaptivity-check` | `swiftui-adaptivity-check` | `skill / repo-internal` | pinned | `ready` | 6 |
 | `code-review` | | | | `todo` | 8 |
 | `build-run` | | | | `todo` | 0, 3, 5–8 |
 
@@ -83,18 +85,18 @@ Only `resolved-from-docs` or `resolved-from-user` permits architecture-dependent
 
 | Area | Project sources (`path#section @ digest`) | Project rule | Skill baseline | Resolved decision | Status |
 |------|------------------------------------------|--------------|----------------|-------------------|--------|
-| Layout | | | `references/layout-adaptivity-contract.md` (LAY-01…LAY-13) | `<reference canvas; scaling API; smallest/largest device; orientations; patterns the project forbids>` | `todo` |
-| Strings | | | `references/project-ui-conventions.md#strings-baseline` | | `todo` |
-| Typography | | | `references/project-ui-conventions.md#typography-baseline` | | `todo` |
-| Colors | | | `references/colors-contract.md` (COL-01…COL-10) | `<palette mechanism + naming scheme; semantic layer location; system slots; appearance variants; project guard invocation; literal allowlist>` | `todo` |
-| Images | | | `import-figma-assets` + `references/project-ui-conventions.md#images-baseline` | | `todo` |
-| Accessibility | | | `references/project-ui-conventions.md#accessibility-baseline` | `no-add` unless documentation or the user explicitly requires otherwise | `todo` |
+| Layout | | | `<shared-root>/references/layout-adaptivity-contract.md` (LAY-01…LAY-13) | `<reference canvas; scaling API; smallest/largest device; orientations; patterns the project forbids>` | `todo` |
+| Strings | | | `<shared-root>/references/project-ui-conventions.md#strings-baseline` | | `todo` |
+| Typography | | | `<shared-root>/references/project-ui-conventions.md#typography-baseline` | | `todo` |
+| Colors | | | `<shared-root>/references/colors-contract.md` (COL-01…COL-10) | `<palette mechanism + naming scheme; semantic layer location; system slots; appearance variants; project guard invocation; literal allowlist>` | `todo` |
+| Images | | | `import-figma-assets` + `<shared-root>/references/project-ui-conventions.md#images-baseline` | | `todo` |
+| Accessibility | | | `<shared-root>/references/project-ui-conventions.md#accessibility-baseline` | `no-add` unless documentation or the user explicitly requires otherwise | `todo` |
 
 Statuses: `matched / project-specific / skill-fallback / inferred-from-code / conflict / not-applicable`. Stages 1–8 do not start while a row is `todo` or while an open `conflict` affects the stage. For Layout, documentation outranks precedent in existing screens: a pattern documentation marks legacy is not repeatable, and `inferred-from-code` applies only when there is no layout documentation at all. For Accessibility, no explicit requirement → `skill-fallback` with the decision `no-add`; `inferred-from-code` never activates scope. Two project documents stating different rules for the same area is a `conflict` to ask about, never a preference to exercise.
 
 ## Figma MCP acquisition (preflight + stage 1)
 
-> Fill per `references/figma-mcp-acquisition.md`. The list of tools actually available outranks the static catalog; never copy raw MCP payloads or temporary asset URLs here.
+> Fill per `<shared-root>/references/figma-mcp-acquisition.md`. The list of tools actually available outranks the static catalog; never copy raw MCP payloads or temporary asset URLs here.
 
 | Transport / input | Read capabilities | Optional capabilities | Target | Write mode | Pin / normalized cache evidence | Status |
 |-------------------|-------------------|-----------------------|--------|------------|---------------------------------|--------|
@@ -214,9 +216,9 @@ The commit subject in the table is the **actual** one from git; one stage = one 
 
 ## UI policy checks (stages 3 and 8)
 
-> One row per detection from `references/layout-adaptivity-contract.md` and `references/colors-contract.md`, run over the feature's changed files. A hit is a stage 3 blocker, not a stage 5 remark. `waived` requires a reason and the user's decision. Where the project ships its own guard, record its exact invocation in the detection column and run that instead.
+> One row per detection from `<shared-root>/references/layout-adaptivity-contract.md` and `<shared-root>/references/colors-contract.md`, run over the feature's changed files. A hit is a stage 3 blocker, not a stage 5 remark. `waived` requires a reason and the user's decision. Where the project ships its own guard, record its exact invocation in the detection column and run that instead.
 >
-> Run: `<exact command>` — the project's guard, or `python3 <skill-root>/scripts/ui_guard.py check --project-root . --changed-since <BASE_SHA> --reference-canvas <W>x<H> --asset-catalog <path>`
+> Run: `<exact command>` — the project's guard, or `python3 <shared-root>/scripts/ui_guard.py check --project-root . --changed-since <BASE_SHA> --reference-canvas <W>x<H> --asset-catalog <path>`
 > Result: `<UI_GUARD_CLEAN / UI_GUARD_DIRTY>` at `<TS>`, `<n>` findings, `<n>` waived, `<n>` files scanned
 >
 > The shipped guard fills LAY-01…LAY-04, LAY-08…LAY-10, LAY-12, LAY-13, COL-01, COL-02, COL-04 and COL-05 — and only with the flags those rules need (`--reference-canvas`, `--asset-catalog`, `--palette-symbol`, `--semantic-layer`). LAY-07, LAY-11 and COL-03 are reviewer rows in every run; leaving them `todo` leaves the gate open.
@@ -244,14 +246,14 @@ Statuses: `todo / clean / hits / fixed / waived`. A clean run of a project guard
 
 ## Adaptivity matrix (stage 6)
 
-One row per combination. The set comes from the deployment target, the spec, and the Layout, Strings, Typography and Accessibility contracts. Layout (LAY-11) makes these mandatory: the smallest supported device, the largest, and devices both with and without a home indicator (different bottom safe area). Per device the evidence explicitly states that the layout fits the screen, that there is no unintended letterboxing, no clipped content, and that the background reaches the edges. On the smallest and largest device it also records the UI Plan's relational edge invariants (for example equal left/right/bottom insets, within 1pt) and confirms that the root uses the system-provided presentation shape. Then the remaining axes: smallest + largest screen; light/dark; permitted content sizes; supported locales and directions and long copy; orientations if supported; keyboard and safe area. Add AX/VoiceOver/Reduce Motion/increased contrast and other accessibility-only rows only when Accessibility scope is explicitly active; the `no-add` baseline does not create them.
+Import the complete required matrix and reviewed evidence from bundled `swiftui-adaptivity-check`.
+Its workflow and shared LAY-11 contract own configuration selection, measurements and completion
+criteria. Include unavailable required rows and translation readiness; the report is the detailed
+source, while this table is the pipeline summary.
 
-> Mechanical pass: `python3 <skill-root>/scripts/screenshot_diff.py batch --plan <matrix.json> --out <report>`
-> Result: `<SCREENSHOT_DIFF_CLEAN / SCREENSHOT_DIFF_DIRTY>` at `<TS>`, `<n>` rows, `<n>` failed, report `<path>`
-> Reviewed by eye: every failing row, one passing row per screen, and the smallest-device row for each
-> screen — list them below. The script is blind to typeface, icon shape, copy and small colour shifts,
-> and across device classes it reports the grid without gating on it, so clipping on the smallest
-> device is confirmed by eye. A green batch is a filter, not a gate.
+> Report: `<path>`; companion result: `<passed / failed / blocked>` at `<TS>`
+> Mechanical result: `<actual SCREENSHOT_DIFF_CLEAN / SCREENSHOT_DIFF_DIRTY / not-run with reason>`
+> Reviewed evidence / measured edge invariants / required physical coverage: `<report rows>`
 
 | Screen | Device | Appearance | Content size | Locale / direction | Orientation | Geometry check | Status | Evidence |
 |--------|--------|------------|--------------|--------------------|-------------|----------------|--------|----------|
@@ -275,9 +277,9 @@ Statuses: `open` / `answered` / `resolved-from-docs` (name where it was found: s
 |--------|--------|--------------------------------------------|----------------|------------------|----------|--------|
 | | `<report path of the bound visual-comparison tool>/<FEATURE>/...` | `<393×852 + 375×667>` | `<pass / fail / not-run>` | `<which pair, and why that one>` | | |
 
-A screen is not comparable while only the reference size is covered. An inset divergence inside the LAY-07 snap window (−2…+4pt) is a match, not a ❌. The outer device-frame radius is ignored unless the project explicitly owns that shape; equal-edge inset relations are checked on the non-reference size.
-
-`Looked at by eye` is never empty: `screenshot_diff.py` reports geometry, so a screen whose rows all passed mechanically has still not been compared to its design. One pair per screen is the floor, and every failing pair is on top of that.
+Import coverage, findings and actual geometry markers/fallbacks from `figma-design-compare`.
+Its completion criteria and the shared Layout/Colors contracts are authoritative; keep the report's
+reviewed pair identifiers in `Looked at by eye` rather than treating a helper marker as visual review.
 
 ## TBD / stubs (stage 7)
 

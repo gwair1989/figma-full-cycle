@@ -27,14 +27,21 @@ class PackageTests(unittest.TestCase):
         self.assertEqual(entry["name"], manifest["name"])
         self.assertEqual(entry["policy"]["installation"], "AVAILABLE")
 
-    def test_all_four_skill_entry_points_are_real_bundled_directories(self):
-        expected = {"figma-full-cycle", "figma-feature-spec", "import-figma-assets", "device-usage"}
+    def test_all_six_skill_entry_points_are_real_bundled_directories(self):
+        expected = {"figma-full-cycle", "figma-feature-spec", "import-figma-assets", "device-usage",
+                    "figma-design-compare", "swiftui-adaptivity-check"}
         actual = {entry.parent.name for entry in (ROOT / "skills").glob("*/SKILL.md")}
         self.assertEqual(actual, expected)
         for name in expected:
             directory = ROOT / "skills" / name
             self.assertFalse(directory.is_symlink(), name)
             self.assertFalse(any(entry.is_symlink() for entry in directory.rglob("*")), name)
+
+    def test_validation_helpers_have_one_canonical_copy(self):
+        shared = ROOT / "skills" / "_figma-full-cycle-shared"
+        self.assertFalse((shared / "SKILL.md").exists())
+        for helper in ("screenshot_diff.py", "ui_guard.py", "localization_context.py"):
+            self.assertEqual(list((ROOT / "skills").rglob(helper)), [shared / "scripts" / helper])
 
 
 if __name__ == "__main__":

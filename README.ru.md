@@ -10,7 +10,7 @@ Claude Code и Codex. Даёшь ссылку на родительский фр
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-black.svg)](LICENSE)
 [![CI](https://github.com/gwair1989/figma-full-cycle/actions/workflows/ci.yml/badge.svg)](https://github.com/gwair1989/figma-full-cycle/actions/workflows/ci.yml)
-![Skills: 4](https://img.shields.io/badge/skills-4-blue)
+![Skills: 6](https://img.shields.io/badge/skills-6-blue)
 ![Runtime deps: none](https://img.shields.io/badge/runtime%20deps-none-brightgreen)
 ![Target UI: SwiftUI](https://img.shields.io/badge/target-SwiftUI-orange)
 
@@ -25,19 +25,21 @@ Claude Code и Codex. Даёшь ссылку на родительский фр
 
 ---
 
-## Один плагин, четыре отдельных скилла
+## Один плагин, шесть отдельных скиллов
 
 Репозиторий — набор переиспользуемых скиллов, оформленный как плагин Codex. Установка плагина
-добавляет все четыре точки входа; вызов одного скилла не запускает остальные.
+добавляет все шесть точек входа; вызов одного скилла не запускает остальные.
 
 | Скилл | Для отдельного использования |
 |---|---|
-| `figma-full-cycle` | Полная реализация фичи; внутри вызывает подготовку спеки и импорт ассетов |
+| `figma-full-cycle` | Полная реализация фичи; вызывает спеку, импорт ассетов, сверку и проверку адаптивности |
 | `figma-feature-spec` | Спецификация по Figma без реализации приложения |
 | `import-figma-assets` | Импорт графики в каталог ассетов Xcode |
+| `figma-design-compare` | Сверка реализованных экранов с зафиксированной версией Figma |
+| `swiftui-adaptivity-check` | Проверка адаптивности с Figma или без макета |
 | `device-usage` | Проверка физического iPhone через Device Hub без Figma и полного цикла |
 
-Это основной репозиторий всех четырёх скиллов. Разработка, issues и релизы Device Usage теперь
+Это основной репозиторий всех шести скиллов. Разработка, issues и релизы Device Usage теперь
 ведутся здесь; прежний отдельный репозиторий удалён. `device-usage` по-прежнему можно
 устанавливать и вызывать отдельно.
 
@@ -97,7 +99,7 @@ Xcode, Computer Use, MCP-сервер или разрешения macOS. Про�
   `app-architecture`, `visual-comparison`, `code-review` и так далее. Переименованные, вынесенные в
   неймспейс, префиксованные плагином и совсем новые вендорские скиллы подхватываются так же; роль
   без кандидата уходит в задокументированный fallback. Жёстко по именам — только то, что лежит
-  здесь: `figma-full-cycle`, `figma-feature-spec`, `import-figma-assets`, необязательный
+  здесь: `figma-full-cycle`, `figma-feature-spec`, `import-figma-assets`, `figma-design-compare`, `swiftui-adaptivity-check`, необязательный
   `device-usage`. Вызывается точное зарегистрированное имя, включая namespace плагина.
 - **Только для физического iPhone:** macOS, сопряжённый iPhone, Xcode с Device Hub и доступный
   desktop Computer Use для самостоятельного управления UI. Возможности проверяются по инструкции
@@ -137,7 +139,7 @@ cd figma-full-cycle
 ./install.sh
 ```
 
-`install.sh` ставит симлинки на все четыре скилла в `~/.claude/skills` — после этого `git pull`
+`install.sh` ставит симлинки на все шесть скиллов в `~/.claude/skills` — после этого `git pull`
 обновляет их на месте.
 
 ```bash
@@ -150,16 +152,26 @@ cd figma-full-cycle
 ./install.sh --uninstall                # удалить установленное
 ```
 
-`--skill` можно повторять. При выборе `figma-full-cycle` также устанавливаются обязательные
-помощники спеки и ассетов; `device-usage` остаётся необязательным. Удаление через
-`--uninstall --skill` затрагивает только указанные скиллы, сохраняя общих помощников.
-`--copy` создаёт самостоятельные папки для переноса на другую машину; соседний репозиторий
-`device-usage` не требуется.
+`--skill` можно повторять. Выбор `figma-full-cycle` также устанавливает четыре обязательных
+скилла: `figma-feature-spec`, `import-figma-assets`, `figma-design-compare`,
+`swiftui-adaptivity-check`. `device-usage` остаётся необязательным. Полный цикл и каждый из двух
+визуальных скиллов устанавливают общий каталог `_figma-full-cycle-shared/` рядом со скиллами.
+В нём одна копия контрактов и read-only помощников; `SKILL.md` нет, отдельным скиллом он не является.
 
-Для каждого скилла следует выбрать один способ регистрации: плагин или отдельная установка.
-Отдельные скиллы вызываются в Codex как `$figma-full-cycle`, `$figma-feature-spec`,
-`$import-figma-assets`, `$device-usage`. Их папки можно использовать и в Claude Code;
-для управления Device Hub среда агента должна предоставлять desktop Computer Use.
+```bash
+./install.sh --target ~/.codex/skills --copy --skill figma-design-compare
+./install.sh --target ~/.codex/skills --copy --skill swiftui-adaptivity-check
+```
+
+При переносе скопированного визуального скилла нужен и соседний `_figma-full-cycle-shared/`.
+Исходный checkout и установленный `figma-full-cycle` не требуются. Для обновления копий используйте
+`--force`. Удаление затрагивает только выбранные симлинки; общие ресурсы и скиллы-помощники
+сохраняются для других пользователей ресурсов. Скопированные папки удаляются вручную.
+Плагин включает общий каталог автоматически.
+
+Выберите для каждого скилла один способ регистрации: плагин или отдельную установку.
+В Codex отдельный вызов имеет вид `$<skill-name>`, включая `$figma-design-compare` и
+`$swiftui-adaptivity-check`. Папки работают и в Claude Code; Device Hub требует Computer Use.
 
 Скиллы уже лежат в твоём skills-каталоге? `--force` заменит их, а старые копии перенесёт в
 `.skill-backups` **рядом** с каталогом скиллов, а не внутрь него — внутри агент подхватил бы бэкап
@@ -183,6 +195,20 @@ cd figma-full-cycle
 Продолжи <FEATURE>, старт: этап 5
 ```
 
+### Отдельные визуальные проверки
+
+```text
+Используй $figma-design-compare: сверь реализованные экраны с <Figma URL> и сохрани отчёт.
+Используй $swiftui-adaptivity-check: проверь экраны на поддерживаемых устройствах и размерах текста без Figma.
+```
+
+Отдельные вызовы сохраняют `docs/<RUN>_DESIGN_COMPARE.md` или `docs/<RUN>_ADAPTIVITY.md`, а локальные
+артефакты — в `docs/.cache/<RUN>/`. Манифест пайплайна и UI Plan не нужны; коммиты не создаются,
+исправления выполняются при наличии разрешения. Для отдельной сверки достаточно авторизованного
+MCP; полный цикл сохраняет собственную проверку credential этапа 5. Адаптивность не требует
+Figma, токена или макета: без макета либо `sips` агент просматривает каждый нативный скриншот.
+Этапы 5/6 вызывают те же скиллы с контекстом пайплайна; манифест обновляет только оркестратор.
+
 ### Что появляется в проекте
 
 | Файл | Tracked | Роль |
@@ -195,25 +221,23 @@ cd figma-full-cycle
 
 ```
 skills/
+├── _figma-full-cycle-shared/         # resources only, no SKILL.md
+│   ├── references/                  # Figma acquisition, UI contracts, validation context
+│   └── scripts/                     # screenshot_diff.py, ui_guard.py, localization_context.py
+│       └── tests/                   # screenshot and UI guard suites
 ├── figma-full-cycle/
-│   ├── SKILL.md                     # оркестратор
-│   ├── adapters/                    # claude-code.md, codex.md — capability → имена инструментов
-│   ├── references/                  # discovery инструментов, контракт UI Plan, Figma acquisition,
-│   │   │                            #   строки, layout, colors, конвенции, pitfalls
-│   │   └── stages/                  # stage-1.md … stage-8.md, читаются на своём этапе
-│   ├── scripts/                     # ui_plan.py, localization_context.py, ui_guard.py,
-│   │                                #   manifest.py, screenshot_diff.py (+ тесты)
+│   ├── SKILL.md                     # orchestration, state, questions, gates
+│   ├── adapters/                    # Codex and Claude Code capability maps
+│   ├── references/                  # discovery, UI Plan, pitfalls, device integration
+│   │   └── stages/                  # 5/6 are companion handoff adapters
+│   ├── scripts/                     # ui_plan.py, manifest.py and tests
 │   ├── templates/                   # PIPELINE, PIPELINE.local, UI_PLAN
-│   └── agents/openai.yaml           # манифест агента в формате OpenAI
-├── figma-feature-spec/              # этап 1 как отдельный скилл
-│   ├── SKILL.md
-│   └── templates/SPEC.template.md
-├── device-usage/                   # физический iPhone / Device Hub, отдельный скилл
-│   ├── SKILL.md                    # references/, agents/, MIT LICENSE
-│   └── scripts/                    # capture-evidence.mjs и его тесты
-└── import-figma-assets/             # этап 2 как отдельный скилл
-    ├── SKILL.md
-    └── scripts/                     # генератор imageset, нормализация PNG-канваса
+│   └── agents/openai.yaml
+├── figma-feature-spec/              # stage 1, spec template
+├── import-figma-assets/             # stage 2, imageset helpers
+├── figma-design-compare/            # stage 5, standalone or pipeline
+├── swiftui-adaptivity-check/        # stage 6, works without Figma
+└── device-usage/                    # optional physical iPhone / Device Hub
 ```
 
 ### Пять скриптов
@@ -232,7 +256,7 @@ python3 skills/figma-full-cycle/scripts/ui_plan.py validate \
 — и отдаёт компактную actionable-диагностику до начала build-цикла.
 
 ```bash
-python3 skills/figma-full-cycle/scripts/localization_context.py inventory --root .
+python3 skills/_figma-full-cycle-shared/scripts/localization_context.py inventory --root .
 ```
 
 `localization_context.py` инспектирует `.xcstrings` / `.strings` / `.stringsdict` с ограниченным
@@ -240,7 +264,7 @@ python3 skills/figma-full-cycle/scripts/localization_context.py inventory --root
 не печатает.
 
 ```bash
-python3 skills/figma-full-cycle/scripts/ui_guard.py check \
+python3 skills/_figma-full-cycle-shared/scripts/ui_guard.py check \
   --project-root . --changed-since <BASE_SHA> \
   --reference-canvas 393x852 --asset-catalog App/Assets.xcassets
 ```
@@ -265,7 +289,7 @@ python3 skills/figma-full-cycle/scripts/manifest.py verify-sources \
 чтения его документации.
 
 ```bash
-python3 skills/figma-full-cycle/scripts/screenshot_diff.py compare \
+python3 skills/_figma-full-cycle-shared/scripts/screenshot_diff.py compare \
   --render build/Onboarding@iPhoneSE.png --mock design/Onboarding.png \
   --ignore-top 6% --out reports/onboarding-se.json
 ```

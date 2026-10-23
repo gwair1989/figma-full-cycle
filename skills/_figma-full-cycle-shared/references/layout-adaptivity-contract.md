@@ -6,6 +6,10 @@ The sixth area of the project UI convention contract. The goal is to fix **which
 
 The area resolves with the same statuses as the others: `matched / project-specific / skill-fallback / inferred-from-code / conflict / not-applicable`.
 
+Standalone validators use [validation-context.md](validation-context.md) for report destinations
+and scope. Without design evidence, reference-canvas fields are `not-applicable`; screen bounds,
+supported configurations and intended edge relations still require evidence.
+
 ## 1. What to resolve from the project
 
 Search by terms as well as section names: `layout`, `adaptive`, `GeometryReader`, `geometry`, `safe area`, `ignoresSafeArea`, `reference canvas`, `artboard`, `designWidth`, `designHeight`, `scaleEffect`, `padding`, `spacing`, `Spacer`, `deployment target`, supported devices and orientations.
@@ -36,7 +40,7 @@ content
 
 That is an aspect-fit of the artboard: a different aspect ratio produces letterboxing, not adaptation. The screen container stretches instead: `.frame(maxWidth: .infinity, maxHeight: .infinity)`.
 
-Detection: a `.scaleEffect(` with a **static** factor paired with a frame pinning **both** dimensions **in the same type body**, where that frame is not provably smaller than the screen. One readable side settles it — a screen is large in both dimensions, so a frame 280pt tall on an 852pt canvas is content whatever its width does. Press feedback (`isPressed ? 0.97 : 1`) is the animation case — and so is any factor driven by state, in the sense LAY-09 spells out — a frame belonging to a different type is a different screen, and a size taken from live geometry (`proxy.size.width` inside a `GeometryReader`) is not a pinned size at all — it means "fill the parent", the opposite of an artboard. The frame reported is the one directly above the `scaleEffect`, because that is the one being scaled. The size does not have to be a literal — a named constant is the same canvas, and `.frame(width: OnboardingLayout.width, height: OnboardingLayout.height)`, resolving through `CGSize(width: 393, height: 852)` in another file, is the exact shape this rule was written from. `scripts/ui_guard.py` resolves constants across every file in the run, covering literals, one-line enums, multi-line declarations, computed properties, `as` casts, any `Type(width:height:)` one constant naming another, and a `typealias` standing in for a type. What it cannot resolve counts as the screen, so an unfamiliar form costs a false positive rather than a silent miss — and `ui_guard.py constants` prints what it read, which is how to tell those two apart in one command.
+Detection: a `.scaleEffect(` with a **static** factor paired with a frame pinning **both** dimensions **in the same type body**, where that frame is not provably smaller than the screen. One readable side settles it — a screen is large in both dimensions, so a frame 280pt tall on an 852pt canvas is content whatever its width does. Press feedback (`isPressed ? 0.97 : 1`) is the animation case — and so is any factor driven by state, in the sense LAY-09 spells out — a frame belonging to a different type is a different screen, and a size taken from live geometry (`proxy.size.width` inside a `GeometryReader`) is not a pinned size at all — it means "fill the parent", the opposite of an artboard. The frame reported is the one directly above the `scaleEffect`, because that is the one being scaled. The size does not have to be a literal — a named constant is the same canvas, and `.frame(width: OnboardingLayout.width, height: OnboardingLayout.height)`, resolving through `CGSize(width: 393, height: 852)` in another file, is the exact shape this rule was written from. `<shared-root>/scripts/ui_guard.py` resolves constants across every file in the run, covering literals, one-line enums, multi-line declarations, computed properties, `as` casts, any `Type(width:height:)` one constant naming another, and a `typealias` standing in for a type. What it cannot resolve counts as the screen, so an unfamiliar form costs a false positive rather than a silent miss — and `ui_guard.py constants` prints what it read, which is how to tell those two apart in one command.
 
 ### LAY-02 — no hard frame on `Color` and shapes
 
@@ -156,11 +160,13 @@ Compensation is a symptom. Fix the cause first — where the geometry comes from
 
 ### LAY-11 — prove adaptivity, do not claim it
 
-- The stage 6 matrix must include the **smallest supported device** and devices **with and without a home indicator** (different bottom safe area) — these are different bug classes.
+- The required adaptivity matrix includes the **smallest and largest supported devices** and
+  devices **with and without a home indicator** (different bottom safe area). Every required
+  target needs a native capture; a Preview alone does not satisfy device screenshot coverage.
 - A screen with geometry needs at least two `#Preview`s: the smallest and the largest supported device. The default preview is the reference device and proves nothing.
 - Evidence is a screenshot per required device with explicit checks: the layout fits the screen, there is no unintended letterboxing, no clipped content, the background reaches the edges.
-- The UI Plan records the screen's relational edge invariants. If a surface is meant to have equal left/right/bottom insets, stage 6 measures or explicitly verifies those three distances on the smallest and largest device; “nothing clips” is not evidence that the surface stayed centred.
-- [`../scripts/screenshot_diff.py`](../scripts/screenshot_diff.py) answers three of those four mechanically — letterboxing, pillarboxing, background to the edges — in a batch over the whole matrix. It compares a mock against a render **of a different size**, which is the point: at the reference size a fixed canvas matches pixel-for-pixel.
+- The UI Plan, or standalone report, records relational edge invariants. Intended equal left/right/bottom insets are verified on the smallest and largest device within 1pt or equivalent screenshot-pixel tolerance, and on the non-reference size during design comparison; “nothing clips” does not prove centring.
+- When a real mock and `sips` exist, [`../scripts/screenshot_diff.py`](../scripts/screenshot_diff.py) answers three checks mechanically — letterboxing, pillarboxing, background to the edges. Without either, inspect every native capture against screen bounds and project invariants; no fabricated mock or mechanical clean marker. The reference/no-reference execution paths belong to `swiftui-adaptivity-check`.
 - **Clipping it cannot gate across device classes.** Normalizing stretches the mock, while a native layout adapts by holding its metrics in points, so a correctly adapted screen differs in the bottom band exactly as a broken one does. Beyond the aspect tolerance the script reports that number and refuses to decide on it. On the smallest supported device, clipping is confirmed by eye.
 - It is a filter, not the gate — also blind to typeface, icon shape, copy and small colour shifts. Eyes go on every failing row, one passing row per screen, and the smallest-device row.
 

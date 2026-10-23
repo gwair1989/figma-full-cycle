@@ -9,7 +9,7 @@ as eight gated stages, one commit per stage, with a tracked manifest as the sour
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-black.svg)](LICENSE)
 [![CI](https://github.com/gwair1989/figma-full-cycle/actions/workflows/ci.yml/badge.svg)](https://github.com/gwair1989/figma-full-cycle/actions/workflows/ci.yml)
-![Skills: 4](https://img.shields.io/badge/skills-4-blue)
+![Skills: 6](https://img.shields.io/badge/skills-6-blue)
 ![Runtime deps: none](https://img.shields.io/badge/runtime%20deps-none-brightgreen)
 ![Target UI: SwiftUI](https://img.shields.io/badge/target-SwiftUI-orange)
 
@@ -22,19 +22,21 @@ as eight gated stages, one commit per stage, with a tracked manifest as the sour
 
 ---
 
-## One plugin, four entry points
+## One plugin, six entry points
 
 This repository is both a collection of reusable skills and a distributable Codex plugin.
-Installing the plugin makes all four workflows available; invoking one does not start the others.
+Installing the plugin makes all six workflows available; invoking one does not start the others.
 
 | Skill | Use independently for |
 |---|---|
-| `figma-full-cycle` | Implementing an entire Figma feature; orchestrates spec and asset skills |
+| `figma-full-cycle` | Implementing an entire Figma feature; orchestrates spec, assets, comparison and adaptivity skills |
 | `figma-feature-spec` | Writing a feature specification without implementing the app |
 | `import-figma-assets` | Importing artwork into an Xcode asset catalog |
+| `figma-design-compare` | Comparing existing screens with a pinned Figma design |
+| `swiftui-adaptivity-check` | Checking supported configurations, with or without Figma |
 | `device-usage` | Testing a physical iPhone through Device Hub, without Figma or a pipeline |
 
-This is the canonical repository for all four skills. Device Usage development, issues and releases
+This is the canonical repository for all six skills. Device Usage development, issues and releases
 now live here; the former standalone repository has been removed. You can still install and invoke
 `device-usage` on its own.
 
@@ -94,7 +96,7 @@ Two properties make this survivable in practice:
   `app-architecture`, `visual-comparison`, `code-review`, … Renamed, namespaced, plugin-prefixed or
   brand-new vendor skills are picked up the same way; every role that finds nothing falls back to a
   documented path. Only what ships here is pinned by name: `figma-full-cycle`, `figma-feature-spec`,
-  `import-figma-assets`, and optional `device-usage`. Bundled identities resolve to their actual
+  `import-figma-assets`, `figma-design-compare`, `swiftui-adaptivity-check`, and optional `device-usage`. Bundled identities resolve to their actual
   registered names, including plugin namespaces.
 - **Physical iPhone checks only:** macOS, a paired physical iPhone, Xcode with Device Hub, and a
   compatible desktop Computer Use tool for autonomous GUI actions. Follow the bundled skill's
@@ -134,7 +136,7 @@ cd figma-full-cycle
 ./install.sh
 ```
 
-`install.sh` symlinks all four skills into `~/.claude/skills` — so `git pull` updates them in place.
+`install.sh` symlinks all six skills into `~/.claude/skills` — so `git pull` updates them in place.
 
 ```bash
 ./install.sh --target ~/.codex/skills   # Codex
@@ -146,15 +148,26 @@ cd figma-full-cycle
 ./install.sh --uninstall                # remove what it installed
 ```
 
-`--skill` is repeatable. Selecting `figma-full-cycle` also installs its required spec and asset
-companions; Device Usage stays optional. With `--uninstall --skill`, only the named entries are
-removed, so shared companions remain. `--copy` creates self-contained skill directories suitable
-for moving to another machine; no sibling `device-usage` repository is needed.
+`--skill` is repeatable. Selecting `figma-full-cycle` also installs its four companions:
+`figma-feature-spec`, `import-figma-assets`, `figma-design-compare`, `swiftui-adaptivity-check`.
+Device Usage stays optional. The full cycle and either visual validator install
+`_figma-full-cycle-shared/` once alongside the skill directories. It contains canonical contracts
+and read-only helpers, has no `SKILL.md`, and is not another entry point.
 
-Use either plugin installation or standalone registration for a given skill to avoid duplicates.
-Standalone Codex invocations are `$figma-full-cycle`, `$figma-feature-spec`, `$import-figma-assets`
-and `$device-usage`. The standalone directories can also be used by Claude Code; Device Hub UI
-control still requires that host to supply desktop Computer Use.
+```bash
+./install.sh --target ~/.codex/skills --copy --skill figma-design-compare
+./install.sh --target ~/.codex/skills --copy --skill swiftui-adaptivity-check
+```
+
+Copied visual skills travel with the sibling `_figma-full-cycle-shared/` directory; the original
+checkout and the full-cycle skill are not needed. Use `--force` to update an existing copied
+installation. Uninstall removes only selected symlinks and preserves companions/shared resources
+so other consumers keep working; copied directories require manual removal. The source tree is
+also usable directly as a plugin, which includes the shared directory.
+
+Use either plugin installation or standalone registration for each skill. Codex standalone
+invocations use `$<skill-name>`, including `$figma-design-compare` and `$swiftui-adaptivity-check`.
+The same directories work in Claude Code; Device Hub still needs desktop Computer Use.
 
 Already keeping these skills in your skills directory? `--force` replaces them and moves the old
 copies to `.skill-backups` **next to** the skills directory — never inside it, where an agent would
@@ -182,6 +195,20 @@ Continue <FEATURE>, start: stage 5
 Russian triggers fire it too — «сделай фичу по фигме», «полный цикл по фрейму», «сверстай экраны, тз
 позже» — and the documents it writes then come out in Russian. See [README.ru.md](README.ru.md).
 
+### Standalone visual checks
+
+```text
+Use $figma-design-compare to compare these implemented screens with <Figma URL>; save a report.
+Use $swiftui-adaptivity-check to check these screens across supported devices and text sizes, without Figma.
+```
+
+Standalone checks write `docs/<RUN>_DESIGN_COMPARE.md` or `docs/<RUN>_ADAPTIVITY.md`, with local
+artifacts under `docs/.cache/<RUN>/`. They need no pipeline manifest/UI Plan, do not commit, and
+apply fixes only when authorized. Authenticated MCP reads suffice for standalone comparison;
+the full cycle retains its own stage 5 credential check. Adaptivity needs no Figma URL/token/mock;
+without a mock or `sips`, every native capture is reviewed directly. Stages 5/6 call these same
+skills with pipeline context and import the report/evidence into the orchestrator-owned manifest.
+
 ### What it writes into your project
 
 | File | Tracked | Role |
@@ -194,25 +221,23 @@ Russian triggers fire it too — «сделай фичу по фигме», «п
 
 ```
 skills/
+├── _figma-full-cycle-shared/         # resources only, no SKILL.md
+│   ├── references/                  # Figma acquisition, UI contracts, validation context
+│   └── scripts/                     # screenshot_diff.py, ui_guard.py, localization_context.py
+│       └── tests/                   # screenshot and UI guard suites
 ├── figma-full-cycle/
-│   ├── SKILL.md                     # the orchestrator
-│   ├── adapters/                    # claude-code.md, codex.md — capability → tool names
-│   ├── references/                  # capability discovery, UI plan contract, Figma acquisition,
-│   │   │                            #   strings, layout, colors, conventions, pitfalls
-│   │   └── stages/                  # stage-1.md … stage-8.md, read at that stage
-│   ├── scripts/                     # ui_plan.py, localization_context.py, ui_guard.py,
-│   │                                #   manifest.py, screenshot_diff.py (+ tests)
+│   ├── SKILL.md                     # orchestration, state, questions, gates
+│   ├── adapters/                    # Codex and Claude Code capability maps
+│   ├── references/                  # discovery, UI Plan, pitfalls, device integration
+│   │   └── stages/                  # 5/6 are companion handoff adapters
+│   ├── scripts/                     # ui_plan.py, manifest.py and tests
 │   ├── templates/                   # PIPELINE, PIPELINE.local, UI_PLAN
-│   └── agents/openai.yaml           # OpenAI-style agent manifest
-├── figma-feature-spec/              # stage 1 as a standalone skill
-│   ├── SKILL.md
-│   └── templates/SPEC.template.md
-├── device-usage/                   # standalone physical iPhone / Device Hub workflow
-│   ├── SKILL.md                    # references/, agents/, MIT LICENSE
-│   └── scripts/                    # capture-evidence.mjs and its tests
-└── import-figma-assets/             # stage 2 as a standalone skill
-    ├── SKILL.md
-    └── scripts/                     # imageset generator, PNG canvas normalizer
+│   └── agents/openai.yaml
+├── figma-feature-spec/              # stage 1, spec template
+├── import-figma-assets/             # stage 2, imageset helpers
+├── figma-design-compare/            # stage 5, standalone or pipeline
+├── swiftui-adaptivity-check/        # stage 6, works without Figma
+└── device-usage/                    # optional physical iPhone / Device Hub
 ```
 
 ### The five scripts
@@ -230,7 +255,7 @@ python3 skills/figma-full-cycle/scripts/ui_plan.py validate \
 their provenance — and returns small, actionable diagnostics before a build loop starts.
 
 ```bash
-python3 skills/figma-full-cycle/scripts/localization_context.py inventory --root .
+python3 skills/_figma-full-cycle-shared/scripts/localization_context.py inventory --root .
 ```
 
 `localization_context.py` inspects `.xcstrings` / `.strings` / `.stringsdict` with bounded output:
@@ -238,7 +263,7 @@ python3 skills/figma-full-cycle/scripts/localization_context.py inventory --root
 prints them whole.
 
 ```bash
-python3 skills/figma-full-cycle/scripts/ui_guard.py check \
+python3 skills/_figma-full-cycle-shared/scripts/ui_guard.py check \
   --project-root . --changed-since <BASE_SHA> \
   --reference-canvas 393x852 --asset-catalog App/Assets.xcassets
 ```
@@ -262,7 +287,7 @@ the UI convention contract was resolved from and reports per area `unchanged` / 
 `unrecorded`, so an unchanged project costs one command instead of re-reading its documentation.
 
 ```bash
-python3 skills/figma-full-cycle/scripts/screenshot_diff.py compare \
+python3 skills/_figma-full-cycle-shared/scripts/screenshot_diff.py compare \
   --render build/Onboarding@iPhoneSE.png --mock design/Onboarding.png \
   --ignore-top 6% --out reports/onboarding-se.json
 ```

@@ -1,6 +1,6 @@
 # Stage 8 — Final
 
-**Read before starting** (skip what the session already holds): the LAY-01…LAY-04, LAY-08…LAY-10, LAY-12, LAY-13 and COL-01…COL-05 rules being re-detected — [`../layout-adaptivity-contract.md`](../layout-adaptivity-contract.md), [`../colors-contract.md`](../colors-contract.md).
+**Read before starting** (skip what the session already holds): the LAY-01…LAY-04, LAY-08…LAY-10, LAY-12, LAY-13 and COL-01…COL-05 rules being re-detected — [`../layout-adaptivity-contract.md`](../../../_figma-full-cycle-shared/references/layout-adaptivity-contract.md), [`../colors-contract.md`](../../../_figma-full-cycle-shared/references/colors-contract.md).
 
 ## Role binding
 
@@ -11,7 +11,7 @@ Then:
 - Re-run the LAY-01…LAY-04, LAY-08…LAY-10, LAY-12, LAY-13 and COL-01…COL-05 detections — or the project's color guard — over the changed files, with the same invocation stage 3 recorded:
 
   ```bash
-  python3 <skill-root>/scripts/ui_guard.py check --project-root . --changed-since <BASE_SHA> --reference-canvas <W>x<H> --asset-catalog <path/to/Assets.xcassets>
+  python3 <shared-root>/scripts/ui_guard.py check --project-root . --changed-since <BASE_SHA> --reference-canvas <W>x<H> --asset-catalog <path/to/Assets.xcassets>
   ```
 
   A waiver added since stage 3 is reviewed here, not accepted because it is already in the file.

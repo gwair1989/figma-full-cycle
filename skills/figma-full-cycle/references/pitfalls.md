@@ -26,7 +26,7 @@ The mistakes this pipeline actually makes, grouped by where they happen. `SKILL.
 
 ## Layout and adaptivity
 
-Rules and the detailed failure catalog: [`layout-adaptivity-contract.md`](layout-adaptivity-contract.md).
+Rules and the detailed failure catalog: [`layout-adaptivity-contract.md`](../../_figma-full-cycle-shared/references/layout-adaptivity-contract.md).
 
 - Laying a screen out as a fixed reference canvas plus `scaleEffect`: it is an aspect-fit of the artboard, so another aspect ratio gets letterboxing instead of adaptation, and `scaleEffect` over text kills re-layout and Dynamic Type.
 - Turning absolute Figma coordinates into `.position(...)`: valid at exactly one canvas size, and it makes the fixed canvas impossible to remove later.
@@ -40,7 +40,7 @@ Rules and the detailed failure catalog: [`layout-adaptivity-contract.md`](layout
 
 ## Colors
 
-Rules and the detailed failure catalog: [`colors-contract.md`](colors-contract.md).
+Rules and the detailed failure catalog: [`colors-contract.md`](../../_figma-full-cycle-shared/references/colors-contract.md).
 
 - Adding a palette entry per feature or per opacity level instead of searching the palette by value and applying `.opacity()` over the existing one.
 - Trusting a project colour guard's clean run without checking that its pattern covers every forbidden literal form — a guard blind to one form reports zero violations while that form spreads.
@@ -52,7 +52,7 @@ Rules and the detailed failure catalog: [`colors-contract.md`](colors-contract.m
 
 ## Strings
 
-Workflow and helper usage: [`strings-workflow.md`](strings-workflow.md).
+Workflow and helper usage: [`strings-workflow.md`](../../_figma-full-cycle-shared/references/strings-workflow.md).
 
 - Treating `Avoid hardcoded values` as a sufficient localization policy, or silently starting a second localization or design-system path.
 - Reading a whole `.xcstrings`, repeating a repo-wide search or build per string, or handing a catalog blob to several subagents instead of one inventory/lookup batch.
