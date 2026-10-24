@@ -1,16 +1,16 @@
-# Установка, диагностика и завершение
+# Installation, diagnostics, and completion
 
-Для проверки toolchain, capabilities и JSON v5 сначала использовать [device-hub.md](device-hub.md). Не разбирать человекочитаемую таблицу `devicectl` как стабильный формат.
+For toolchain, capability, and JSON v5 checks, start with [device-hub.md](device-hub.md). Do not parse the human-readable `devicectl` table as a stable format.
 
-## Выбор сборки
+## Choosing a build
 
-Сохранить текущие version/build, источник установки и состояние данных до замены. Различать configuration (Debug/Release) и signing channel (development/Ad Hoc/App Store/TestFlight). Release может быть development-signed.
+Save the current version/build, installation source, and data state before replacement. Distinguish configuration (Debug/Release) from signing channel (development/Ad Hoc/App Store/TestFlight). A Release build may be development-signed.
 
-Для исследования уже установленного приложения без замены достаточно доступных read-only metadata/сведений UI. Если точечный запрос приложений пуст, это не доказывает отсутствие приложения: сверить `device info apps --help`, при необходимости получить `--include-all-apps` и локально выделить нужный bundle ID из JSON. Этот флаг в проверенной версии CLI игнорирует остальные фильтры; полный список содержит посторонние приложения и идентификаторы, поэтому в отчёт переносить только минимальные сведения целевого приложения. `builtByDeveloper=false` не различает App Store и TestFlight; неизвестный источник установки оставить неизвестным.
+To investigate an installed app without replacing it, available read-only metadata/UI information is sufficient. An empty targeted app query does not prove the app is absent: check `device info apps --help`, retrieve `--include-all-apps` if necessary, and locally extract the intended bundle ID from JSON. In the verified CLI version, this flag ignores other filters; the full list contains unrelated apps and identifiers, so include only minimal target-app information in the report. `builtByDeveloper=false` does not distinguish App Store from TestFlight; leave an unknown installation source unknown.
 
-Для локальной установки использовать build/run script текущего проекта, если он подходит, и его правила cache lifecycle. Иначе подготовить device build через xcodebuild с существующим workspace/project, scheme, target, signing team и повторно используемым DerivedData. Не подставлять сведения из предыдущего проекта.
+For local installation, use the current project's build/run script if suitable and follow its cache-lifecycle rules. Otherwise prepare a device build through xcodebuild using the existing workspace/project, scheme, target, signing team, and reusable DerivedData. Do not reuse details from a previous project.
 
-Команды ниже — шаблоны; переменные задаются из обнаруженного окружения. DEVICE_ID подходит devicectl, UDID — hardware identifier для libimobiledevice. Сверить текущий --help и JSON schema CLI.
+The commands below are templates; set variables from the discovered environment. DEVICE_ID is for devicectl; UDID is the hardware identifier for libimobiledevice. Check the CLI's current --help and JSON schema.
 
 ```sh
 xcrun devicectl list devices --json-output "$EVIDENCE/devices.json"
@@ -19,9 +19,9 @@ xcrun devicectl device info apps --device "$DEVICE_ID" \
   --json-output "$EVIDENCE/app-before.json"
 ```
 
-В многодевайсном списке явно сопоставить hardware UDID, CoreDevice ID и модель. DeveloperApp/ContainerAccessible в metadata не доказывают источник установки, get-task-allow или фактическую возможность debugger/container access после замены на TestFlight.
+In a list with multiple devices, explicitly match hardware UDID, CoreDevice ID, and model. DeveloperApp/ContainerAccessible metadata does not prove installation source, get-task-allow, or actual debugger/container access after replacement with TestFlight.
 
-Если нужна копия доступного контейнера до замены:
+If a copy of an accessible container is needed before replacement:
 
 ```sh
 xcrun devicectl device copy from --device "$DEVICE_ID" --source . \
@@ -29,13 +29,13 @@ xcrun devicectl device copy from --device "$DEVICE_ID" --source . \
   --domain-identifier "$BUNDLE_ID" --timeout 120
 ```
 
-Проверить exit status и результат. App-container copy не является полным device backup; не включает все Keychain/iCloud данные, может быть несогласованной при активных записях, доступна не для каждого приложения. Ограничить локальные права на копию. Не обещать rollback без доступной исходной сборки, совместимых данных и проверенного restore.
+Check the exit status and result. An app-container copy is not a full device backup; it excludes some Keychain/iCloud data, may be inconsistent during active writes, and is not available for every app. Restrict local permissions on the copy. Do not promise rollback without the original build, compatible data, and a verified restore.
 
-Для development-сборки при подходящих capabilities можно использовать обычные command-line overrides CODE_SIGN_STYLE=Automatic, DEVELOPMENT_TEAM, CODE_SIGN_IDENTITY="Apple Development", пустой PROVISIONING_PROFILE_SPECIFIER. Условные CLI settings вида SETTING[sdk=...]=... не переносить из .xcconfig вслепую: проверить effective values. Provisioning updates выполнять в рамках доступного аккаунта и запроса. Release settings репозитория ради одноразовой установки менять не требуется.
+For a development build with suitable capabilities, ordinary command-line overrides may be used: CODE_SIGN_STYLE=Automatic, DEVELOPMENT_TEAM, CODE_SIGN_IDENTITY="Apple Development", and an empty PROVISIONING_PROFILE_SPECIFIER. Do not blindly transfer conditional CLI settings such as SETTING[sdk=...]=... from .xcconfig: check effective values. Perform provisioning updates within the available account and request scope. A one-time installation does not require changing the repository's Release settings.
 
-Проверить signing identity, embedded profile, ProvisionedDevices/срок и нужные entitlements. Успешная компиляция не доказывает installability. Ошибка 0xe800801f с текстом Beta profile without proper entitlement требует исследования профиля/entitlements, а не переустановки циклом; один код не определяет универсальную причину.
+Check the signing identity, embedded profile, ProvisionedDevices/expiry, and required entitlements. Successful compilation does not prove installability. Error 0xe800801f with the text Beta profile without proper entitlement requires profile/entitlement investigation, not a reinstall loop; a code alone does not identify a universal cause.
 
-APP_PATH получить из TARGET_BUILD_DIR + WRAPPER_NAME правильного target, bundle ID — из продукта. Установка и запуск — отдельные проверяемые шаги:
+Resolve APP_PATH from TARGET_BUILD_DIR + WRAPPER_NAME for the correct target, and obtain the bundle ID from the product. Installation and launch are separately verifiable steps:
 
 ```sh
 xcrun devicectl device install app --device "$DEVICE_ID" \
@@ -43,7 +43,7 @@ xcrun devicectl device install app --device "$DEVICE_ID" \
   > "$EVIDENCE/install.log" 2>&1
 ```
 
-После успешного install подтвердить version/build, затем запуск:
+After successful installation, confirm the version/build, then launch:
 
 ```sh
 xcrun devicectl device process launch --device "$DEVICE_ID" \
@@ -51,32 +51,32 @@ xcrun devicectl device process launch --device "$DEVICE_ID" \
   > "$EVIDENCE/launch.log" 2>&1
 ```
 
-Проверить данные и ожидаемый экран. Для TestFlight/App Store/чужого приложения сохранить выбранный пользователем канал; внешнее UI-управление не требует автоматически пересборки AUT. Uninstall удаляет данные и не заменяет update.
+Verify the data and expected screen. For TestFlight/App Store/third-party apps, preserve the user's chosen channel; external UI control does not automatically require rebuilding the AUT. Uninstall deletes data and does not replace an update.
 
 [Apple CLI](https://developer.apple.com/documentation/xcode/interacting-with-devices-using-the-command-line), [Developer Mode](https://developer.apple.com/documentation/xcode/enabling-developer-mode-on-a-device).
 
-## Логи
+## Logs
 
-| Источник | Что проверять |
+| Source | What to check |
 | --- | --- |
-| Hub → Reports | Время/процесс/build конкретного crash report; список не является live log |
-| Console на Mac | Правильный iPhone, Start, фильтр process/subsystem, свежие события |
-| idevicesyslog | Совместимый CLI, hardware UDID, реальное имя процесса, обновление файла |
-| devicectl launch --console | stdout/stderr нового запуска; это не полный unified log |
-| Crash/Jetsam report | Время, build, причина завершения, соответствующий dSYM для символикации |
+| Hub → Reports | Time/process/build of a specific crash report; the list is not a live log |
+| Console on Mac | Correct iPhone, Start, process/subsystem filter, fresh events |
+| idevicesyslog | Compatible CLI, hardware UDID, actual process name, file updates |
+| devicectl launch --console | stdout/stderr from a new launch; not the complete unified log |
+| Crash/Jetsam report | Time, build, termination reason, matching dSYM for symbolication |
 
-До установки нового диагностического stack проверить встроенные Reports, More Actions → Show in Finder (DeviceFS), `device info mountpoint` и доступный домен `systemCrashLogs`. Для системного сбоя при необходимости использовать Collect sysdiagnose / `device sysdiagnose --help`; это отдельный сбор с временем и расходом ресурсов, не обязательный шаг каждого UI-теста. Сведения о профилях доступны в Info → Profiles; logging profile и его удаление учитывать отдельно. DeviceFS не расширяет права на app container.
+Before installing a new diagnostic stack, check built-in Reports, More Actions → Show in Finder (DeviceFS), `device info mountpoint`, and the available `systemCrashLogs` domain. For a system failure, use Collect sysdiagnose / `device sysdiagnose --help` if needed; this is a separate collection with time and resource costs, not a mandatory step in every UI test. Profile information is available in Info → Profiles; track a logging profile and its removal separately. DeviceFS does not expand app-container permissions.
 
-Если libimobiledevice уже доступен, запускать foreground collector в управляемой сессии и записывать её ID/PID:
+If libimobiledevice is already available, run a foreground collector in a managed session and record its ID/PID:
 
 ```sh
 idevicesyslog -u "$UDID" -p "$PROCESS_NAME" --no-colors \
   > "$EVIDENCE/device-process.log" 2>&1
 ```
 
-UI выполнять из другой сессии. После install/relaunch проверить новые timestamp и известное логируемое действие. Живой PID или непустой файл могут принадлежать stale stream. При stale capture перезапустить только свой collector и повторить проверку; пустой лог не доказывает отсутствие ошибок.
+Perform UI actions from another session. After install/relaunch, check new timestamps and a known logged action. A live PID or nonempty file may belong to a stale stream. For stale capture, restart only your collector and repeat the check; an empty log does not prove the absence of errors.
 
-Для нового запуска с stdout/stderr, когда запуск разрешён сценарием:
+For a new launch with stdout/stderr, when the scenario permits launching:
 
 ```sh
 xcrun devicectl device process launch --device "$DEVICE_ID" --console \
@@ -84,27 +84,27 @@ xcrun devicectl device process launch --device "$DEVICE_ID" --console \
   > "$EVIDENCE/app-stdio.log" 2>&1
 ```
 
-Существующему процессу streams этим флагом не переподключаются. --console ждёт завершения процесса и передаёт catchable signals приложению: Ctrl-C может изменить lifecycle AUT. Использовать файл для --json-output, не stdout '-'; проверять контракт своей версии CLI.
+This flag does not reattach streams to an existing process. --console waits for process termination and forwards catchable signals to the app: Ctrl-C may change the AUT lifecycle. Use a file for --json-output, not stdout '-'; check the contract for your CLI version.
 
-Error/Fault severity системного framework в процессе не является автоматически багом приложения. Коррелировать с действием, временем и симптомом. Signal 9 при install/replacement также не доказывает crash. Сырые логи, идентификаторы, личные фото и account data хранить локально; в отчёт выносить необходимые очищенные фрагменты.
+Error/Fault severity from a system framework within the process is not automatically an app bug. Correlate it with the action, time, and symptom. Signal 9 during install/replacement also does not prove a crash. Keep raw logs, identifiers, personal photos, and account data local; include only necessary sanitized excerpts in the report.
 
 [Console](https://support.apple.com/guide/console/view-log-messages-cnsl1012/mac), [crash reports](https://developer.apple.com/documentation/xcode/acquiring-crash-reports-and-diagnostic-logs), [idevicesyslog](https://github.com/libimobiledevice/libimobiledevice/blob/master/docs/idevicesyslog.1).
 
-## Coverage manifest и баги
+## Coverage manifest and bugs
 
-### Категории наблюдений
+### Observation categories
 
-Категория описывает увиденное; статус `passed/failed/blocked/not-run` и coverage описывают проверку согласованного маршрута. Записывать их отдельно.
+The category describes what was observed; `passed/failed/blocked/not-run` status and coverage describe verification of the agreed route. Record them separately.
 
-| Категория | Что подтверждать |
+| Category | What to confirm |
 | --- | --- |
-| Функциональная ошибка | Устойчивое расхождение с ожидаемым действием/данными/навигацией при работающем канале ввода. Один no-op без контрольных действий ещё не устанавливает баг приложения. |
-| Визуальная ошибка | Наложение, обрезка, неверное расположение/цвет или нечитаемый текст после стабилизации UI; сохранить кадр и конфигурацию. Отмечать даже при работающей основной функции. |
-| Переходное состояние | Загрузка, анимация, появление клавиатуры. Получить следующее наблюдение; если ожидаемый переход не завершается в пределах сценария, зафиксировать невыполненное ожидание и исследовать причину. |
-| Ожидаемое поведение | Состояние соответствует согласованному сценарию. Empty state, disabled button или permission dialog не являются автоматически ошибкой или успехом: сравнить с ожидаемым поведением именно этого состояния. |
-| Неожиданное завершение | Приложение исчезло/процесс завершился вопреки сценарию. Сопоставить UI, PID и свежие логи; отдельно установить crash, Jetsam, системное завершение или запланированный relaunch. Смена PID сама по себе не доказывает crash. |
+| Functional defect | A persistent discrepancy from the expected action/data/navigation while the input channel works. One no-op without control actions does not yet establish an app bug. |
+| Visual defect | Overlap, clipping, incorrect placement/color, or unreadable text after the UI stabilizes; save the frame and configuration. Record it even when the primary function works. |
+| Transient state | Loading, animation, keyboard appearance. Obtain the next observation; if the expected transition does not finish within the scenario, record the unmet expectation and investigate the cause. |
+| Expected behavior | The state matches the agreed scenario. An empty state, disabled button, or permission dialog is not automatically a failure or success: compare it with the expected behavior of that specific state. |
+| Unexpected termination | The app disappeared/the process terminated contrary to the scenario. Correlate UI, PID, and fresh logs; separately establish a crash, Jetsam, system termination, or planned relaunch. A PID change alone does not prove a crash. |
 
-При недоступном вводе, системном ограничении или непроверяемом конечном состоянии записать blocker и фактическое покрытие. Инфраструктурный blocker не превращать в функциональную ошибку приложения. Для подтверждённого расхождения использовать `failed`; для перехода до конечного наблюдения не назначать итоговый `passed`.
+When input is unavailable, a system restriction applies, or the final state cannot be verified, record a blocker and actual coverage. Do not turn an infrastructure blocker into an app functional defect. Use `failed` for a confirmed discrepancy; do not assign a final `passed` to a transition before its final observation.
 
 ```markdown
 Run: <date/time/timezone>; device/iOS/macOS/Xcode/tools: <versions>
@@ -119,6 +119,6 @@ Uncovered: <states and reasons>
 Final: <screen/data/build/configuration restored or remaining changes>; sessions: <stopped/remaining>; backups/cache: <disposition>
 ```
 
-Для бага сохранить build/channel, начальное состояние, точные шаги, expected/actual, повторяемость, evidence и уверенность. Клик пустой части строки против клика по тексту, смена масштаба и другой канал — разные контрольные условия. Совпадение через Hub и Mirroring усиливает гипотезу, но общий CUA ещё не исключён; физическое касание или XCTest помогают изолировать причину.
+For a bug, save build/channel, initial state, exact steps, expected/actual results, reproducibility, evidence, and confidence. Clicking an empty part of a row versus its text, changing scale, and using another channel are different control conditions. Agreement between Hub and Mirroring strengthens the hypothesis, but shared CUA is not yet excluded; a physical touch or XCTest can help isolate the cause.
 
-Закрыть тестовые drafts без сохранения, если сохранение не было частью сценария; остановить собственные collectors с учётом forwarding signals. Указать оставленные screen sessions, сборку, изменения данных, backup и build cache. Не чистить чужие/неизвестные caches.
+Close test drafts without saving unless saving was part of the scenario; stop your own collectors while accounting for signal forwarding. List remaining screen sessions, build, data changes, backup, and build cache. Do not clean other people's or unknown caches.

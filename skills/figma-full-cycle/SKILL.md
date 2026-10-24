@@ -1,6 +1,6 @@
 ---
 name: figma-full-cycle
-description: 'Use when given a Figma parent frame link/URL for a feature or flow and the goal is a complete working implementation end-to-end, not a single artifact. Triggers: «сделай фичу по фигме», «полный цикл по фрейму», «реализуй флоу из фигмы целиком», «сверстай экраны, тз позже», "full cycle from Figma frame", "implement feature from Figma flow", "UI first, logic later". NOT for spec-only (figma-feature-spec), single asset import (import-figma-assets), or one-screen comparison (figma-design-compare), or standalone adaptivity (swiftui-adaptivity-check).'
+description: 'Use when given a Figma parent frame link/URL for a feature or flow and the goal is a complete working implementation end-to-end, not a single artifact. Triggers: "full cycle from Figma frame", "implement feature from Figma flow", "implement the entire Figma flow", "build the screens, requirements later", "UI first, logic later". NOT for spec-only (figma-feature-spec), single asset import (import-figma-assets), or one-screen comparison (figma-design-compare), or standalone adaptivity (swiftui-adaptivity-check).'
 ---
 
 # Figma Full Cycle
@@ -223,7 +223,7 @@ Stages are named by the roles of [`references/capability-discovery.md`](referenc
 
 For the "design exists, requirements come later" case: build the screens now, add the logic when the requirements arrive.
 
-- Turn it on with `mode: ui-first` or phrases like «тз позже», «пока только верстка», "requirements later", "UI only for now".
+- Turn it on with `mode: ui-first` or phrases like "requirements later", "UI only for now".
 - Stages 0–6 run as usual. Stage 3 uses the resolved project architecture for state ownership, UI bindings and interaction boundaries, so adding logic later does not force an architectural rewrite of the UI.
 - Product and logic questions are not blockers: they go to the log with status `deferred-to-spec`. UI questions and an unresolved project architecture remain blockers.
 - After the stage 6 gate: checkpoint commit; stages 7–8 → `waiting_user` with the reason "waiting for requirements"; readiness is `prototype/UI-only` (recorded as the user's choice); branch and worktree stay. Do not start finalization (PR/merge) without an explicit request.

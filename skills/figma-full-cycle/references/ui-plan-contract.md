@@ -52,7 +52,7 @@ Run with both `--manifest` and `--project-root` in the real pipeline. The declar
 manifest. Both manifest sections are required, even when their tables are empty.
 Copy IDs are read
 from `## Feature copy inventory`; asset IDs are read from `## Sub-checklist: assets
-(stage 2)`, with the pre-translation heading `## Под-чеклист: ассеты` still accepted
+(stage 2)`, with the legacy Russian asset sub-checklist heading still accepted
 for manifests already in flight. Cross-checking is bidirectional: neither the UI Plan
 nor those feature manifest tables may silently omit the other's IDs.
 

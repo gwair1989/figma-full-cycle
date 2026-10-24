@@ -1,5 +1,7 @@
 # Figma Full Cycle
 
+[English](README.md) | [Russian](README.ru.md) | [Simplified Chinese](README.zh-CN.md) | [Hindi](README.hi.md) | [Spanish](README.es.md) | [French](README.fr.md) | [Arabic](README.ar.md) | [German](README.de.md) | [Korean](README.ko.md)
+
 **A Figma parent frame in. A reviewed, built, convention-compliant feature out.**
 
 `figma-full-cycle` is an orchestrator [Agent Skill](https://code.claude.com/docs/en/skills) for
@@ -13,12 +15,11 @@ as eight gated stages, one commit per stage, with a tracked manifest as the sour
 ![Runtime deps: none](https://img.shields.io/badge/runtime%20deps-none-brightgreen)
 ![Target UI: SwiftUI](https://img.shields.io/badge/target-SwiftUI-orange)
 
-> **Language note.** The Figma skills, references and templates are English. The bundled
-> `device-usage` instructions retain their upstream Russian. Each Figma skill's
-> `description` also keeps its Russian trigger phrases, so Russian prompts still fire it, and the
-> documents the skill writes into your project follow **your** language. Machine-read structure —
-> UI Plan keys, statuses, manifest headings, commit subjects — stays English so the validator and
-> resume keep working. [README.ru.md](README.ru.md) is the Russian version of this page.
+> **Language note.** Skills, descriptions, agent metadata, references, templates and repository
+> docs are written in English; localized `README.*.md` files are the exception. [README.md](README.md)
+> is the source for README translations. Documents the skills write into your project follow
+> **your** language. Machine-read structure — UI Plan keys, statuses, manifest headings, commit
+> subjects — stays English so the validator and resume keep working.
 
 ---
 
@@ -192,8 +193,8 @@ Implement the feature from <url>, mode: ui-first — requirements come later
 Continue <FEATURE>, start: stage 5
 ```
 
-Russian triggers fire it too — «сделай фичу по фигме», «полный цикл по фрейму», «сверстай экраны, тз
-позже» — and the documents it writes then come out in Russian. See [README.ru.md](README.ru.md).
+You can make requests in your language; generated project documents follow that language.
+Use the language links above for a localized README.
 
 ### Standalone visual checks
 

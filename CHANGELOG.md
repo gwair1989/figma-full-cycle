@@ -6,8 +6,18 @@ versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Full README translations in Simplified Chinese, Hindi, Spanish, French, Arabic, German and Korean,
+  with language navigation across all nine README versions. The English README is the translation
+  source; skill instructions and machine-read identifiers remain English.
+
 ### Changed
 
+- Translated Device Usage instructions, references and agent metadata into English, replaced
+  Russian trigger examples in the other skills, and removed remaining Russian text from repository
+  documentation. `README.ru.md` remains in Russian; generated project documents still follow the
+  user's language, and the validator still accepts legacy asset headings in existing manifests.
 - Extracted stages 5 and 6 into standalone `figma-design-compare` and `swiftui-adaptivity-check`.
   Stage files now hand off to the bundled skills; pipeline schema 16 pins their role bindings.
   Standalone checks write their own reports, need no pipeline manifest or UI Plan, and adaptivity
@@ -304,7 +314,7 @@ versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Russian trigger phrases stay in each `description`, and generated project documents follow the
   user's language while machine-read structure stays English.
 - `ui_plan.py` reads the asset checklist from `## Sub-checklist: assets` and still accepts the
-  pre-translation `## Под-чеклист: ассеты` heading, so manifests already in flight keep validating.
+  legacy Russian asset sub-checklist heading, so manifests already in flight keep validating.
 - CI no longer runs the validator tests; they run locally. The workflow keeps only the skill
   structure and relative-link checks.
 - `install.sh --force` moves the replaced skill to `.skill-backups` beside the target directory

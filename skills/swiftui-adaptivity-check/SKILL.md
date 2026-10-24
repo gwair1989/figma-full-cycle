@@ -1,6 +1,6 @@
 ---
 name: swiftui-adaptivity-check
-description: 'Use when checking existing SwiftUI screens across device sizes, safe areas, appearances, text sizes, locales, orientations or keyboard states. Works without Figma, standalone or as stage 6 of figma-full-cycle. Triggers: "проверь адаптивность", "проверь экран на маленьком айфоне", "проверь вёрстку на разных устройствах". Not for Figma visual fidelity or implementing business logic.'
+description: 'Use when checking existing SwiftUI screens across device sizes, safe areas, appearances, text sizes, locales, orientations or keyboard states. Works without Figma, standalone or as stage 6 of figma-full-cycle. Triggers: "check adaptivity", "check the screen on a small iPhone", "check the layout across devices". Not for Figma visual fidelity or implementing business logic.'
 ---
 
 # SwiftUI Adaptivity Check

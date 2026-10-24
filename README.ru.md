@@ -1,5 +1,7 @@
 # Figma Full Cycle
 
+[English](README.md) | [Russian](README.ru.md) | [Simplified Chinese](README.zh-CN.md) | [Hindi](README.hi.md) | [Spanish](README.es.md) | [French](README.fr.md) | [Arabic](README.ar.md) | [German](README.de.md) | [Korean](README.ko.md)
+
 **На входе — ссылка на родительский фрейм в Figma. На выходе — собранная, сверенная с дизайном и
 отревьюенная фича по правилам проекта.**
 
@@ -14,14 +16,11 @@ Claude Code и Codex. Даёшь ссылку на родительский фр
 ![Runtime deps: none](https://img.shields.io/badge/runtime%20deps-none-brightgreen)
 ![Target UI: SwiftUI](https://img.shields.io/badge/target-SwiftUI-orange)
 
-> **Про язык.** Figma-скиллы, их references и шаблоны — английские. Инструкции добавленного
-> `device-usage` сохраняют русский язык исходного проекта. Русские триггер-фразы остались в
-> `description` каждого скилла, так что русский промпт по-прежнему его поднимает, а документы,
-> которые скилл пишет в твой проект, идут **на твоём языке**. Машиночитаемая структура — ключи UI
-> Plan, статусы, заголовки манифеста, subject коммитов — всегда английская, иначе ломаются валидатор
-> и resume.
->
-> English version: [README.md](README.md).
+> **Про язык.** Скиллы, их описания, метаданные агентов, справочники, шаблоны и документация
+> репозитория написаны на английском; исключение — локализованные файлы `README.*.md`.
+> Источник для переводов README — [README.md](README.md). Документы, которые скиллы создают
+> в твоём проекте, следуют **твоему языку**. Машиночитаемая структура — ключи UI Plan, статусы,
+> заголовки манифеста и темы коммитов — остаётся английской, чтобы работали валидатор и resume.
 
 ---
 

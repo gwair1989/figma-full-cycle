@@ -1,6 +1,6 @@
 ---
 name: figma-design-compare
-description: 'Use when comparing implemented SwiftUI screens or native app screenshots against a Figma frame, reporting visual differences, or verifying requested visual fixes. Works standalone or as stage 5 of figma-full-cycle. Triggers: "сверь экран с фигмой", "сравни реализацию с макетом", "проверь соответствие дизайну". Not for implementing a new flow or checking adaptivity without a design reference.'
+description: 'Use when comparing implemented SwiftUI screens or native app screenshots against a Figma frame, reporting visual differences, or verifying requested visual fixes. Works standalone or as stage 5 of figma-full-cycle. Triggers: "compare the screen with Figma", "compare the implementation with the mockup", "check design fidelity". Not for implementing a new flow or checking adaptivity without a design reference.'
 ---
 
 # Figma Design Compare

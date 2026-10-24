@@ -1,13 +1,13 @@
-# Скриншоты и подтверждение покрытия
+# Screenshots and proof of coverage
 
-## Выбор источника
+## Choosing a source
 
-- **Нативный screenshot устройства**: полный размер framebuffer, без окна Hub, sidebar и Info с идентификаторами. Предпочитать для UI-дефектов и визуального сравнения приложения.
-- **Screenshot CUA окна Hub**: нужен для геометрии управления, состояния Mac controls и диагностики канала; может содержать чужие устройства и служебные сведения.
+- **Native device screenshot**: full framebuffer size, without the Hub window, sidebar, or Info identifiers. Prefer it for UI defects and visual app comparisons.
+- **CUA screenshot of the Hub window**: needed for control geometry, Mac-control state, and channel diagnostics; may contain other devices and administrative details.
 
-Нативный screenshot не задаёт координаты для `hub.click/drag`: CUA работает с масштабированным окном. После нативного capture получить свежий кадр CUA перед следующим координатным действием. `capture-evidence.mjs` ниже сохраняет CUA bytes; для нативного capture применять тот же порядок проверки и отдельную запись manifest с `captureSource`, размерами и target.
+A native screenshot does not provide coordinates for `hub.click/drag`: CUA operates on a scaled window. After native capture, obtain a fresh CUA frame before the next coordinate action. `capture-evidence.mjs` below saves CUA bytes; for native capture, apply the same verification sequence and a separate manifest entry with `captureSource`, dimensions, and target.
 
-В проверенном `devicectl 651.13.5` есть команда ниже; перед использованием проверить локальный `--help` и capability **Capture Screenshot**. Папка `EVIDENCE` должна существовать; задать уникальное имя, чтобы не перезаписать evidence:
+The verified `devicectl 651.13.5` provides the command below; before using it, check local `--help` and the **Capture Screenshot** capability. The `EVIDENCE` directory must exist; choose a unique filename to avoid overwriting evidence:
 
 ```sh
 xcrun devicectl device capture screenshot --device "$DEVICE_ID" \
@@ -15,29 +15,29 @@ xcrun devicectl device capture screenshot --device "$DEVICE_ID" \
   --json-output "$EVIDENCE/capture-0001.json"
 ```
 
-Команда проверена на физическом iPhone с iOS 27.0.1: PNG 1170×2532 успешно сохранён и просмотрен. Это подтверждает данный target/runtime, не все устройства. Для нескольких дисплеев сверить `device info displays` и локальный контракт `--display-unique-id`.
+The command was verified on a physical iPhone running iOS 27.0.1: a 1170×2532 PNG was successfully saved and inspected. This confirms that target/runtime, not every device. For multiple displays, check `device info displays` and the local `--display-unique-id` contract.
 
-Кнопка Screenshot в Hub также снимает полное разрешение устройства. Путь сохранения может зависеть от preferences Hub, прежнего Simulator и macOS; не считать Desktop гарантированным. Явный `--destination` исключает эту неоднозначность. [Apple capture](https://developer.apple.com/documentation/xcode/capturing-screenshots-and-videos-from-devices), [Xcode 27 notes](https://developer.apple.com/documentation/xcode-release-notes/xcode-27-release-notes).
+Hub's Screenshot button also captures the device's full resolution. The save path may depend on Hub preferences, the previous Simulator, and macOS; do not assume Desktop. An explicit `--destination` removes this ambiguity. [Apple capture](https://developer.apple.com/documentation/xcode/capturing-screenshots-and-videos-from-devices), [Xcode 27 notes](https://developer.apple.com/documentation/xcode-release-notes/xcode-27-release-notes).
 
-Наличие `device capture screen-record --help` не подтверждает запись видео физического iPhone. Проверить capability/ограничения target; при поддержке использовать конечную `--duration`, проверить декодирование файла и остановку recorder. Отсутствующая поддержка — ограничение канала, не повод перезапускать устройство.
+The presence of `device capture screen-record --help` does not confirm video recording on a physical iPhone. Check the target's capabilities/limitations; when supported, use a finite `--duration`, verify file decoding, and confirm the recorder stops. Missing support is a channel limitation, not a reason to restart the device.
 
 ## Capture
 
-Сохранять исходные bytes CUA без перекодирования. Формат определять по сигнатуре, а не имени API: `FF D8 FF` — JPEG, `89 50 4E 47 0D 0A 1A 0A` — PNG. Согласовать расширение и MIME, проверить наличие/размер файла, декодирование доступным image-reader и фактическое изображение. Сигнатура сама по себе не доказывает корректность всего изображения.
+Save the original CUA bytes without transcoding. Determine format from the signature, not the API name: `FF D8 FF` is JPEG; `89 50 4E 47 0D 0A 1A 0A` is PNG. Match the extension and MIME, check file existence/size, decode with an available image reader, and inspect the actual image. A signature alone does not prove the entire image is valid.
 
-Порядок: **capture → просмотр именно сохранённых bytes → annotate**. Назначать нейтральный ID до визуальной идентификации, например `capture-0001`; пока кадр не просмотрен, состояние `unreviewed`, описание пустое. После просмотра записать **наблюдаемый** текст/состояние, а ожидаемый результат — в карте маршрута. Кадр с прежним экраном после tap не становится результатом перехода из-за названия файла. После анимации/инерции сохранять конечный checkpoint; промежуточному ставить `transition`. `stable` — оценка агента по наблюдениям, не вывод helper.
+Sequence: **capture → inspect the exact saved bytes → annotate**. Assign a neutral ID before visual identification, such as `capture-0001`; until inspected, the frame stays `unreviewed` with an empty description. After inspection, record the **observed** text/state and put the expected result in the route map. A frame still showing the previous screen after a tap does not become proof of a transition because of its filename. After animation/inertia, save the final checkpoint; mark intermediate frames `transition`. `stable` is the agent's judgment based on observations, not the helper's conclusion.
 
-Минимальный manifest: channel/target/app version/build; у capture — ID, filename, MIME, UTC-время наблюдения, `unreviewed`/`stable`/`transition`, фактическое содержание и пригодность к публикации. `unreviewed` не подтверждает маршрут. Для live screenshots использовать время наблюдения; таймкод относится только к существующему видеоисточнику. Число файлов включает переходы и дубликаты, поэтому не равно числу покрытых экранов. Полное покрытие карусели требует цепочки стабильных кадров с общим соседним элементом, отдельно от подтверждения границ.
+Minimum manifest: channel/target/app version/build; for each capture, ID, filename, MIME, UTC observation time, `unreviewed`/`stable`/`transition`, actual content, and publication suitability. `unreviewed` does not verify a route. For live screenshots, use observation time; a timecode refers only to an existing video source. File counts include transitions and duplicates, so they do not equal the number of covered screens. Full carousel coverage requires a sequence of stable frames sharing an adjacent element, separately from boundary verification.
 
-## Приватность
+## Privacy
 
-Перед capture учитывать автоматически подставляемые account/email/User ID/Device ID в формах, письмах и логах. Хранить сырые evidence локально с ограниченным доступом; в prose/публичный отчёт выносить необходимые проверенные фрагменты. Сохранение файла в репозитории не означает разрешение его публикации.
+Before capture, account for automatically populated account/email/User ID/Device ID values in forms, messages, and logs. Keep raw evidence local with restricted access; include necessary reviewed excerpts in prose/public reports. Saving a file in a repository does not authorize publication.
 
-Классификация по умолчанию — `raw-private`. `reviewed` означает, что агент проверил пригодность конкретного кадра для предполагаемой аудитории; это не автоматическое редактирование или разрешение отправки. При наличии личных сведений готовить отдельный разрешённый материал для публикации, сохраняя связь с исходником. Наличие composer/share sheet не означает отправку; отдельно фиксировать отмену и судьбу своего нового черновика.
+The default classification is `raw-private`. `reviewed` means the agent checked a particular frame's suitability for the intended audience; it does not mean automatic redaction or permission to send. If personal details are present, prepare a separate authorized publication artifact while retaining its connection to the source. A composer/share sheet does not imply sending; separately record cancellation and the disposition of your new draft.
 
-## Необязательный helper для CUA на Mac
+## Optional helper for CUA on Mac
 
-[capture-evidence.mjs](../scripts/capture-evidence.mjs) использует только Node stdlib. Импортировать в доступном CUA runtime после выбора target и чтения его документации. Определить фактическую папку по пути загруженного `SKILL.md`: это может быть standalone skill или plugin cache. В примере `skillDirectory` — уже установленный агентом абсолютный путь к этой папке; `hub` — уже выбранный CUA target. `nodeRepl` доступен только в соответствующем runtime; в другом использовать его штатный просмотр сохранённого файла.
+[capture-evidence.mjs](../scripts/capture-evidence.mjs) uses only the Node standard library. Import it in an available CUA runtime after selecting the target and reading its documentation. Determine the actual directory from the loaded `SKILL.md` path: it may be a standalone skill or plugin cache. In the example, `skillDirectory` is the absolute path to that directory already resolved by the agent; `hub` is the already selected CUA target. `nodeRepl` is available only in the corresponding runtime; elsewhere, use the runtime's native method to inspect the saved file.
 
 ```javascript
 var { createEvidenceRecorder } = await import(
@@ -53,29 +53,29 @@ nodeRepl.write({ path: saved.path, entry: saved.entry });
 await nodeRepl.emitImage(saved.bytes);
 ```
 
-Прочитать показанное изображение. Только следующим вызовом задать фактическую подпись:
+Inspect the displayed image. Set the factual caption only in the next call:
 
-Если стабильность пока неизвестна, сохранить `unreviewed` до дополнительного наблюдения; не назначать `stable` только ради заполнения manifest. Промежуточный кадр, наблюдаемый в ходе перехода, помечать `transition`.
+If stability is still unknown, retain `unreviewed` until another observation; do not assign `stable` merely to fill the manifest. Mark an intermediate frame observed during a transition as `transition`.
 
 ```javascript
 nodeRepl.write(await evidence.annotate(saved.entry.id, {
   state: 'transition',
-  observation: 'Список ещё виден; ожидаемый ответ пока не появился',
+  observation: 'The list is still visible; the expected response has not appeared yet',
 }));
 ```
 
-Helper вызывает только `target.getScreenshot({emit:false})`, сохраняет exact bytes с нейтральным ID, SHA-256, `observedAt`/`savedAt` и атомарно обновляет `screenshots.json`. `annotate(id, {state, observation, publication?})` требует `stable`/`transition` и непустое наблюдение; меняет только метаданные и добавляет UTC `annotatedAt`. Capture и annotate используют одну очередь и согласованно обновляют memory/disk, включая последующие captures и возобновление recorder. ID/имя/bytes/hash/время capture и screenshot остаются прежними. Для исправления подписи повторно использовать `annotate`, а не править manifest при активном recorder. Предыдущий API capture с явными labels сохранён для совместимости; новый проход вести в два этапа. Helper не способен проверить, действительно ли агент просмотрел изображение.
+The helper calls only `target.getScreenshot({emit:false})`, saves the exact bytes with a neutral ID, SHA-256, and `observedAt`/`savedAt`, and atomically updates `screenshots.json`. `annotate(id, {state, observation, publication?})` requires `stable`/`transition` and a nonempty observation; it changes only metadata and adds a UTC `annotatedAt`. Capture and annotate share one queue and consistently update memory/disk, including subsequent captures and recorder resumption. The capture's ID/name/bytes/hash/time and screenshot stay unchanged. To correct a caption, call `annotate` again instead of editing the manifest while the recorder is active. The previous capture API with explicit labels is retained for compatibility; use two stages for new walkthroughs. The helper cannot verify whether the agent actually inspected the image.
 
-Формат проверяется по сигнатуре/концу файла; декодирование и визуальная оценка остаются отдельными проверками. Возвращённый buffer — те же сохранённые bytes. Новые файлы создаются с mode 0600, новая папка — 0700; права существующих папок не меняются.
+Format is checked by signature/end-of-file; decoding and visual assessment remain separate checks. The returned buffer contains the same saved bytes. New files use mode 0600 and new directories use 0700; existing directory permissions are unchanged.
 
-Один recorder/writer на папку. Повторный импорт/создание recorder с теми же labels продолжает совместимый manifest; для другой сборки/канала/target выбрать другую папку. Коллизия имени, несовместимый manifest или оставшийся временный файл останавливают сохранение без перезаписи исходных screenshots. После ошибки записи проверить папку: screenshot может сохраниться до неуспешного обновления manifest; восстановление согласовать по фактическим файлам. Helper не заменяет AX-наблюдения, визуальную проверку или действующие разрешения.
+Use one recorder/writer per directory. Reimporting/creating a recorder with the same labels continues a compatible manifest; choose another directory for a different build/channel/target. A filename collision, incompatible manifest, or leftover temporary file stops saving without overwriting original screenshots. After a write error, inspect the directory: the screenshot may have been saved before a failed manifest update; reconcile recovery with the actual files. The helper does not replace AX observations, visual verification, or existing permissions.
 
-После обновления файла helper уже импортированный модуль может остаться в кеше runtime. Если runtime не поддерживает повторную загрузку модуля, сбросить только REPL bindings, заново выбрать target/прочитать документацию и импортировать файл. Это не требует перезапуска приложения или устройства. Суффикс query в пути импорта не считать поддержанным без проверки runtime.
+After the helper file is updated, an already imported module may remain cached in the runtime. If the runtime does not support module reloading, reset only the REPL bindings, select the target/read its documentation again, and import the file. This does not require restarting the app or device. Do not assume an import-path query suffix is supported without checking the runtime.
 
-Проверка helper из корня скилла:
+Test the helper from the skill root:
 
 ```sh
 node --test scripts/capture-evidence.test.mjs
 ```
 
-Если runtime не поддерживает такой импорт/возврат bytes, сохранить через доступный штатный инструмент и проверить тот же контракт evidence; установка другого канала управления не требуется.
+If the runtime does not support this import/byte-return mechanism, save through an available native tool and verify the same evidence contract; installing another control channel is unnecessary.

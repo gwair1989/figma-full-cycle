@@ -1,6 +1,6 @@
 ---
 name: figma-feature-spec
-description: 'Use when given a Figma frame link/URL for a whole feature or flow and a written spec is needed before any coding — turning the frame''s child screens into a pre-implementation spec document. Triggers: "сделай спеку по фигме", "спека по фрейму", "разложи фрейм на экраны", "figma flow to spec", "feature spec from frame", pre-implementation design doc from a Figma parent frame.'
+description: 'Use when given a Figma frame link/URL for a whole feature or flow and a written spec is needed before any coding — turning the frame''s child screens into a pre-implementation spec document. Triggers: "write a spec from Figma", "break down the frame into screens", "figma flow to spec", "feature spec from frame", pre-implementation design doc from a Figma parent frame.'
 ---
 
 # Figma Feature Spec

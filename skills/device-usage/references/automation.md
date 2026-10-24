@@ -1,27 +1,27 @@
-# Повторяемые сценарии и дополнительные инструменты
+# Repeatable scenarios and additional tools
 
-Device Hub остаётся основным каналом исследовательского прохода; Mirroring — запасным. Дополнительный stack выбирать, когда нужны locators, assertions, управляемые жесты или диагностические services. Его установка не входит автоматически в любой UI-прогон.
+Device Hub remains the primary channel for exploratory walkthroughs; Mirroring is the fallback. Choose an additional stack when locators, assertions, controllable gestures, or diagnostic services are needed. Installing it is not automatically part of every UI run.
 
-| Вариант | Применение и граница |
+| Option | Use and limits |
 | --- | --- |
-| Native XCTest UI runner | Элементы, ожидания, жесты; нужен подписанный runner на trusted device, WDA не нужен |
-| Appium XCUITest + WebDriverAgent | WebDriver и повторяемые сценарии; подписать WDA отдельно от AUT |
-| Appium Inspector | Просмотр элементов и разработка сценариев; требует подготовленных server/driver/WDA |
-| pymobiledevice3 | Диагностика и дополнительные device services; отдельный pilot, совместимость проверять |
+| Native XCTest UI runner | Elements, waits, gestures; requires a signed runner on a trusted device, but no WDA |
+| Appium XCUITest + WebDriverAgent | WebDriver and repeatable scenarios; sign WDA separately from the AUT |
+| Appium Inspector | Element inspection and scenario development; requires a configured server/driver/WDA |
+| pymobiledevice3 | Diagnostics and additional device services; run a separate pilot and verify compatibility |
 
-Начать с имеющихся Hub/Console/devicectl и logger. Подпись automation runner и подпись app under test — разные сущности; preinstalled приложение не требуется автоматически пересобирать. У Appium есть real-device конфигурация с udid, bundleId и noReset=true. Проверять фактические права отдельно от metadata.
+Start with the available Hub/Console/devicectl and logger. Signing the automation runner and signing the app under test are separate concerns; a preinstalled app does not automatically need rebuilding. Appium supports real-device configuration with udid, bundleId, and noReset=true. Check actual permissions separately from metadata.
 
-Для XCTest/Appium предпочитать accessibility identifiers, bounded waits, hittable и видимый результат. exists не гарантирует возможность нажать. Для управляемой скорости изучить текущие XCTest swipeUp(velocity:) / Appium mobile:swipe; каждый жест всё равно подтверждать на устройстве. mobile:scroll имеет ограничения надёжности.
+For XCTest/Appium, prefer accessibility identifiers, bounded waits, hittable checks, and visible results. exists does not guarantee that an element can be tapped. For controlled velocity, investigate the current XCTest swipeUp(velocity:) / Appium mobile:swipe; still verify every gesture on the device. mobile:scroll has reliability limitations.
 
-При повторных Appium-сессиях рассмотреть переиспользование WDA через useNewWDA=false. При зависании сначала изучить main-thread idle и logs; глобальное отключение ожиданий не является универсальным исправлением.
+For repeated Appium sessions, consider reusing WDA through useNewWDA=false. If a session hangs, inspect main-thread idle state and logs first; globally disabling waits is not a universal fix.
 
-Проверять версии и local --help перед установкой/командами. У pymobiledevice3 screenshot, syslog, display/HID и accessibility services имеют разные prerequisites. В recipes версии 11.31.0 HID swipe — pointer motion без touch contact, а touch-scroll требует drag; координаты 0..65535, не CUA pixels. Это сведения конкретной версии, не вечный контракт. Наличие CLI не доказывает доступность всех AX-элементов стороннего приложения.
+Check versions and local --help before installation or commands. In pymobiledevice3, screenshot, syslog, display/HID, and accessibility services have different prerequisites. In the version 11.31.0 recipes, HID swipe is pointer motion without touch contact, while touch scrolling requires drag; coordinates are 0..65535, not CUA pixels. These details apply to that version, not a permanent contract. CLI availability does not prove access to all AX elements in a third-party app.
 
-Maestro 2.11.0 не поддерживает physical iOS. Если рассматривается более новая версия, проверить актуальную поддержку; Simulator-прохождение не засчитывать за реальный iPhone.
+Maestro 2.11.0 does not support physical iOS devices. If considering a newer version, verify current support; a Simulator pass does not count as a physical iPhone pass.
 
-Пока новый runner/CLI не подтвердил контрольные tap, scroll в обе стороны, logger и восстановление, считать его непроверенным кандидатом. Не выводить большую стабильность из документации. Прогоны разных каналов проводить последовательно с отдельными строками coverage.
+Until a new runner/CLI has verified control taps, scrolling in both directions, logging, and recovery, treat it as an unverified candidate. Do not infer greater stability from documentation. Run different channels sequentially with separate coverage rows.
 
-Первичные источники (исходное исследование: 2026-10-15; перед подготовкой нового stack проверить актуальность):
+Primary sources (original research: 2026-10-15; check for updates before preparing a new stack):
 
 - [XCTest hittable](https://developer.apple.com/documentation/xcuiautomation/xcuielement/ishittable)
 - [Appium device setup](https://appium.github.io/appium-xcuitest-driver/latest/getting-started/device-setup/)

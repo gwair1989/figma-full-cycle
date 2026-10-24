@@ -1,63 +1,63 @@
-# UI на физическом iPhone
+# UI on a physical iPhone
 
-## Подключение Device Hub
+## Connecting Device Hub
 
-Device Hub доступен в Xcode 27+. При настройке или отказе канала проверить версии, pairing и capabilities по [device-hub.md](device-hub.md). Выбрать именно physical iPhone, проверить модель/OS и нажать **View Screen**. Наличие рядом Simulator не означает, что выбран телефон. При ограниченной видимой области использовать full window и **Zoom to Fit**.
+Device Hub is available in Xcode 27+. During setup or a channel failure, check versions, pairing, and capabilities using [device-hub.md](device-hub.md). Select the physical iPhone, verify its model/OS, and click **View Screen**. A nearby Simulator does not mean the phone is selected. If the visible area is limited, use the full window and **Zoom to Fit**.
 
-Hub позволяет взаимодействовать с canvas и физическим устройством. В отличие от Mirroring, ему не требуется оставлять телефон заблокированным. Если canvas показывает lock screen, владелец разблокирует устройство штатным способом; Home не заменяет аутентификацию. После выхода из Mirroring телефон может остаться заблокированным.
+Hub supports interaction with the canvas and physical device. Unlike Mirroring, it does not require the phone to remain locked. If the canvas shows a lock screen, the owner unlocks the device normally; Home does not replace authentication. The phone may remain locked after exiting Mirroring.
 
-Сравнивать каналы последовательно: закончить screen session одного и подтвердить готовность другого. Клики Mac menu под открытым меню не являются кликами по iPhone. Если Escape не закрывает меню, использовать AX secondary action Cancel только когда оно реально доступно.
+Compare channels sequentially: end one screen session and confirm the other is ready. Clicking a Mac menu while it is open does not click the iPhone. If Escape does not close the menu, use the AX secondary action Cancel only when it is actually available.
 
-Apple: [Device Hub](https://developer.apple.com/documentation/xcode/device-hub), [управление экраном](https://developer.apple.com/documentation/xcode/interacting-with-your-app-in-device-hub).
+Apple: [Device Hub](https://developer.apple.com/documentation/xcode/device-hub), [screen interaction](https://developer.apple.com/documentation/xcode/interacting-with-your-app-in-device-hub).
 
-## CUA и система координат
+## CUA and coordinates
 
-Примеры `cua`/`nodeRepl` ниже относятся к совместимому Codex CUA runtime. В Claude Code или другом runtime использовать реально доступный desktop Computer Use API и его документацию по [agent-compatibility.md](agent-compatibility.md); не вызывать несуществующий `cua` через обычный terminal/Node.
+The `cua`/`nodeRepl` examples below apply to a compatible Codex CUA runtime. In Claude Code or another runtime, use the desktop Computer Use API actually available and its documentation, following [agent-compatibility.md](agent-compatibility.md); do not call a nonexistent `cua` from a regular terminal/Node process.
 
-Прочитать актуальный контракт CUA. В совместимом Codex runtime первый вызов новой сессии содержит только выбор приложения; возвращённую документацию прочитать до следующих действий:
+Read the current CUA contract. In a compatible Codex runtime, the first call in a new session contains only app selection; read the returned documentation before further actions:
 
 ```javascript
 var hub = await cua.getApp('com.apple.dt.Devices');
 ```
 
-Отдельным следующим вызовом получить screenshot. Использовать актуальные AX-индексы для controls Mac, координаты свежего screenshot — для содержимого iPhone, когда iOS AX не предоставлен.
+Obtain a screenshot in a separate subsequent call. Use current AX indices for Mac controls and coordinates from a fresh screenshot for iPhone content when iOS AX is unavailable.
 
 ```javascript
 await hub.getScreenshot();
 ```
 
-Координаты привязаны к конкретному окну и масштабу, а не к физическому разрешению iPhone. После изменения окна, canvas, ориентации или sheet вычислять их заново. Размер canvas способен измениться при неизменных внешних bounds окна. После анимации два наблюдения стабильного положения цели помогают избежать промаха; это не гарантия полной готовности приложения.
+Coordinates belong to a particular window and scale, not the iPhone's physical resolution. Recalculate them after changes to the window, canvas, orientation, or sheet. Canvas size can change while the outer window bounds remain unchanged. After an animation, two observations of a stable target position help avoid a missed tap; they do not guarantee the app is fully ready.
 
-После действия запрашивать AX перед следующим решением. Если AX описывает только Mac и не изменился, получить screenshot для оценки iOS-состояния. Blank/skeleton на первом кадре после перехода проверять последующим наблюдением. Перед следующим coordinate tap сравнить положение целевого control после загрузки или инерции; совпадение внешних bounds окна недостаточно. Capture такого перехода пометить `transition`, сохранив фактическое содержание по [evidence.md](evidence.md).
+After an action, request AX before the next decision. If AX describes only the Mac and has not changed, obtain a screenshot to assess the iOS state. Recheck a blank/skeleton first frame after a transition with a subsequent observation. Before the next coordinate tap, compare the target control's position after loading or inertia; unchanged outer window bounds are insufficient. Mark a capture of such a transition as `transition`, preserving its actual content according to [evidence.md](evidence.md).
 
-### Нативная иерархия iOS, если доступна
+### Native iOS hierarchy, when available
 
-Если выбранный канал или уже подготовленный разрешённый adapter предоставляет свежую иерархию iOS и ввод, адресовать элемент по его идентичности и рассчитанному `hitPoint`, предпочитая эту точку центру bounds или оценке по изображению. Сверить target, приложение и актуальность иерархии; obscured/неинтерактивный центр bounds может отличаться от доступной точки нажатия. Если adapter предоставляет только inspection, наличие `hitPoint` не означает наличие команды native tap.
+If the selected channel or an already prepared, authorized adapter provides a fresh iOS hierarchy and input, address the element by identity and its calculated `hitPoint`, preferring that point to the bounds center or an estimate from the image. Verify the target, app, and hierarchy freshness; an obscured/noninteractive bounds center may differ from an accessible tap point. If the adapter provides inspection only, a `hitPoint` does not imply a native tap command is available.
 
-Отправлять `hitPoint` только через backend, для которого рассчитаны его координаты. После подтверждённого no-op получить новую иерархию и screenshot, проверить готовность/перекрытие; допустима одна повторная попытка по обновлённой доступной точке. Если подходящей точки нет или повтор не сработал, перейти к координатам свежего screenshot соответствующего канала. Для Hub/CUA нужен новый кадр окна: native `hitPoint` и framebuffer pixels туда напрямую не переносить.
+Send `hitPoint` only through the backend for which its coordinates were calculated. After a confirmed no-op, obtain a new hierarchy and screenshot and check readiness/overlap; allow one retry at an updated accessible point. If no suitable point exists or the retry fails, use coordinates from a fresh screenshot of the corresponding channel. Hub/CUA requires a new window frame: do not transfer native `hitPoint` coordinates or framebuffer pixels directly into it.
 
-Mac AX окна Hub не считать иерархией iOS. Нераскрытая ветка/placeholder не доказывает отсутствие элемента. При отсутствии нативной иерархии продолжать обычный Hub/CUA-проход; устанавливать другой backend или подключать Xcode MCP ради этого правила не требуется.
+Do not treat the Hub window's Mac AX as an iOS hierarchy. An unexpanded branch/placeholder does not prove that an element is absent. Without a native hierarchy, continue the normal Hub/CUA walkthrough; this rule does not require installing another backend or connecting Xcode MCP.
 
-## Жесты Hub
+## Hub gestures
 
-### Матрица ввода
+### Input matrix
 
-Для каждого нужного жеста вести три независимые колонки. Указывать версии и фактический контракт runtime; поддержка Apple не доказывает доступность через CUA.
+For each required gesture, maintain three independent columns. Record versions and the actual runtime contract; Apple support does not prove availability through CUA.
 
-| Метод | Возможность Apple | Выразимость текущим API | Проверенный результат |
+| Method | Apple capability | Expressibility through the current API | Verified result |
 | --- | --- | --- | --- |
-| Contact drag | Клик/drag в Device Hub | Например, только начало/конец; duration/path отсутствуют | Container, направление, якоря до/после, no-op/открытие/перелёт/точный переход |
-| Wheel/trackpad scroll | Отдельный путь scroll; не тождественен direct touch | Поддержанные axis/distance; тип исходного устройства может быть неизвестен | Проверять отдельно после остановки предыдущей инерции |
-| Комбинация клавиши и scroll | В Mirroring Apple описывает удержание Shift одновременно со scroll | Только если API выражает удержание/модификатор на всём scroll | Последовательный press/release, затем scroll не подтверждает комбинацию |
-| Touch and hold / double-tap | Click-and-hold / double-click | В совместимом Mac CUA: `click([x,y], {durationMs: ...})` / `{clickCount: 2}` | Проверить меню/состояние; длительность click не добавляет duration/path к drag |
+| Contact drag | Click/drag in Device Hub | For example, start/end only; no duration/path | Container, direction, before/after anchors, no-op/opening/overshoot/precise transition |
+| Wheel/trackpad scroll | Separate scroll path; not equivalent to direct touch | Supported axes/distances; the source device type may be unknown | Test separately after previous inertia stops |
+| Key and scroll combination | For Mirroring, Apple describes holding Shift while scrolling | Only if the API expresses a held key/modifier throughout the scroll | Sequential press/release followed by scroll does not verify the combination |
+| Touch and hold / double-tap | Click-and-hold / double-click | In compatible Mac CUA: `click([x,y], {durationMs: ...})` / `{clickCount: 2}` | Check the menu/state; click duration does not add duration/path to drag |
 
-В Xcode 27 Apple описывает гибридную модель: клик даёт `UITouch.TouchType.direct`, wheel — `UIEvent.EventType.scroll`, trackpad pinch/rotate — `UIEvent.EventType.transform`. Поэтому работа drag и отказ wheel могут различаться закономерно. Для pointer-сценария проверить наличие **Device → Simulate Trackpad or Mouse** на выбранном target; его отсутствие не исправлять выдуманной командой. Двухпальцевый touch Hub в notes Xcode 27 не поддерживает. Эти возможности Apple не расширяют автоматически контракт CUA.
+In Xcode 27, Apple describes a hybrid model: a click produces `UITouch.TouchType.direct`, the wheel produces `UIEvent.EventType.scroll`, and trackpad pinch/rotate produces `UIEvent.EventType.transform`. A working drag and failing wheel can therefore be expected to differ. For pointer scenarios, check whether **Device → Simulate Trackpad or Mouse** is available for the selected target; do not compensate for its absence with an invented command. Xcode 27 notes state that Hub does not support two-finger touch. These Apple capabilities do not automatically expand the CUA contract.
 
-`pressKey` с duration, две параллельные команды или неизвестный alias клавиши сами по себе не доказывают перекрытие событий. Не подбирать недокументированные aliases и не заменять CUA скрытой инъекцией событий. В источниках Apple описывает гибридную модель ввода Hub; фактический UIEvent/UITouch внутри стороннего приложения без инструментирования неизвестен. См. [Xcode 27 release notes](https://developer.apple.com/documentation/xcode-release-notes/xcode-27-release-notes) и [TN3210](https://developer.apple.com/documentation/technotes/tn3210-optimizing-your-app-for-iphone-mirroring).
+A `pressKey` duration, two parallel commands, or an unknown key alias do not by themselves prove overlapping events. Do not guess undocumented aliases or replace CUA with hidden event injection. Apple sources describe Hub's hybrid input model; actual UIEvent/UITouch events inside a third-party app are unknown without instrumentation. See [Xcode 27 release notes](https://developer.apple.com/documentation/xcode-release-notes/xcode-27-release-notes) and [TN3210](https://developer.apple.com/documentation/technotes/tn3210-optimizing-your-app-for-iphone-mirroring).
 
-### Точность и границы
+### Precision and boundaries
 
-Для движения к нижнему содержимому выполнить contact drag снизу вверх внутри одного scroll container. Координаты ниже — переменные, выбранные по текущему screenshot:
+To reach lower content, perform a contact drag from bottom to top within one scroll container. The coordinates below are variables selected from the current screenshot:
 
 ```javascript
 await hub.drag([contentX, lowerY], [contentX, upperY]);
@@ -65,56 +65,56 @@ await hub.getAXState();
 await hub.getScreenshot();
 ```
 
-В проверенном CUA API drag принимает только начало и конец, без duration. Короткий drag может вызвать значительную инерцию; калибровать по видимым якорям, а не числу пикселей. Проверить обратный drag, а горизонтальный выполнять внутри нужной карусели.
+In the verified CUA API, drag accepts only start and end points, with no duration. A short drag may cause significant inertia; calibrate using visible anchors rather than pixel counts. Test a reverse drag, and perform horizontal drags inside the intended carousel.
 
-Перед жестом определить неинтерактивные области **в данном контейнере**. Drag, начатый внутри карточки/кнопки, иногда интерпретируется как её открытие. У grid промежуток между столбцами может подходить для вертикального drag; у горизонтального ряда на том же месте уже может быть следующая частичная карточка. Правое поле другого экрана может содержать info-кнопку — перенести координату оттуда без нового наблюдения нельзя.
+Before a gesture, identify noninteractive areas **within this container**. A drag starting inside a card/button is sometimes interpreted as opening it. In a grid, the gap between columns may suit a vertical drag; in a horizontal row, the same position may already contain the next partial card. The right margin on another screen may contain an info button; do not reuse its coordinate without a fresh observation.
 
-Если для остановки инерции нужен tap, выбрать наблюдаемую пустую область, затем AX и стабильный screenshot. При отсутствии такой области дождаться стабилизации наблюдениями или сменить метод. Уменьшение длины drag само по себе не гарантирует малого смещения. После стабилизации wheel-style scroll проверять отдельным действием: продолжающаяся инерция от drag не доказывает работу wheel.
+If a tap is needed to stop inertia, select an observed empty area, then obtain AX and a stable screenshot. Without such an area, wait for stability through observations or change methods. Shortening a drag alone does not guarantee a small displacement. Test wheel-style scrolling as a separate action after stabilization: continued drag inertia does not prove the wheel works.
 
-Если wheel-style scroll даёт no-op при видимом запасе содержимого, проверить touch-drag. Это разные методы ввода. При пропуске середины допускается ограниченная калибровка по якорям. Если уменьшение длины даёт прежний перелёт либо чередование no-op/перелёта, остановиться: это ограничение точности данного метода в данном состоянии, а не доказательство ошибки приложения или физической скорости drag. Дальше нужен другой проверенный метод, контрольный контейнер или ручная проба владельца, если она нужна задаче.
+If wheel-style scrolling is a no-op while more content is visibly available, test a touch drag. These are different input methods. When the middle is skipped, bounded calibration against anchors is allowed. If shortening the drag yields the same overshoot or alternating no-op/overshoot, stop: this is a precision limit of the method in the current state, not proof of an app defect or the drag's physical speed. Next use another verified method, a control container, or an owner-performed manual check if the task requires it.
 
-Проверенные на iPhone 13 при Xcode 27 приёмы не являются гарантией для всех iOS/адаптеров. Успех одного канала не переносится автоматически на все кнопки, приложения и состояния.
+Techniques verified on an iPhone 13 with Xcode 27 are not guaranteed for all iOS versions/adapters. Success through one channel does not automatically apply to every button, app, and state.
 
-### Горизонтальная прокрутка
+### Horizontal scrolling
 
-1. После остановки инерции определить по свежему кадру именно горизонтальный container, его видимые карточки и внутреннюю полосу для жеста. Начальная и конечная точки contact drag должны находиться внутри этого ряда примерно на одной высоте; избегать системного края экрана и drag handles. Если свободной полосы нет, выбрать наблюдаемую область карточки и проверить, что жест прокрутил ряд, а не открыл или перетащил карточку.
-2. В Hub проверить contact drag по выбранному горизонтальному направлению, затем обратный из наблюдаемой позиции. Направление движения содержимого и порядок карточек подтверждать кадрами: RTL, paging и вложенный вертикальный scroll могут менять результат. Вертикальная прокрутка другой части страницы не подтверждает работу этой оси.
-3. Записать результат каждого жеста: движение соседних карточек, открытие карточки, вертикальный сдвиг, no-op или перелёт. При повторном перелёте через середину после уменьшения длины остановить калибровку этого метода. Если API принимает только начало/конец, короткий путь не задаёт низкую скорость; параметры duration/path из другого API к нему не добавлять.
-4. Если текущий API документирует горизонтальный `scroll`/ось left-right, проверить его отдельно после остановки contact drag и с поддержанным малым distance. Он может давать другой результат, поскольку это другой метод ввода. При no-op проверить тот же метод и ту же ось в другом наблюдаемом горизонтальном контейнере, если такой контроль доступен. Рабочий Home при неработающей карусели сам по себе не обосновывает общий recovery Hub.
-5. Если уже подготовленный adapter действительно поддерживает duration или траекторию touch swipe, можно провести отдельную пробу с этими параметрами и новым checkpoint. Такая возможность не является свойством любого `drag`. При отсутствии управляемого метода сохранить `coverage=partial` и blocker зависимого маршрута; дальнейшую ручную пробу владельца или подготовленный канал выбирать для конкретной различающей проверки.
-6. Для доказательства покрытия сохранять цепочку стабильных кадров с перекрытием: на соседних кадрах узнаваем один и тот же элемент. Для каждого шага записать видимые карточки, направление и evidence ID; отдельно подтвердить оба края и обратный ход. Пропущенный средний диапазон оставить `partial` даже при известных крайних карточках. Не выводить общее число карточек из двух крайних кадров.
+1. After inertia stops, identify the horizontal container, its visible cards, and an internal gesture strip from a fresh frame. Both contact-drag endpoints must stay within that row at roughly the same height; avoid the system screen edge and drag handles. If no empty strip exists, select an observed card area and verify that the gesture scrolled the row instead of opening or dragging the card.
+2. In Hub, test a contact drag in the chosen horizontal direction, then reverse it from an observed position. Confirm content direction and card order with frames: RTL, paging, and nested vertical scrolling can change the outcome. Vertical scrolling elsewhere on the page does not verify this axis.
+3. Record each gesture's result: movement of adjacent cards, card opening, vertical displacement, no-op, or overshoot. If a shorter drag again overshoots the middle, stop calibrating that method. When the API accepts only start/end points, a short path does not set a low speed; do not add duration/path parameters from another API.
+4. If the current API documents horizontal `scroll`/a left-right axis, test it separately after the contact drag stops, with a supported small distance. It may behave differently because it is another input method. After a no-op, test the same method and axis in another observed horizontal container if such a control is available. Working Home input with a failing carousel does not by itself justify general Hub recovery.
+5. If an already prepared adapter actually supports touch-swipe duration or a trajectory, a separate trial may use those parameters and a new checkpoint. This capability does not belong to every `drag`. Without a controllable method, retain `coverage=partial` and a blocker for the dependent route; choose any further owner-performed manual trial or prepared channel for a specific check that distinguishes possible causes.
+6. To prove coverage, save a sequence of stable, overlapping frames: the same element must be recognizable in adjacent frames. For each step, record visible cards, direction, and evidence ID; separately confirm both ends and the reverse direction. Leave a skipped middle range `partial` even when the outermost cards are known. Do not infer the total card count from two endpoint frames.
 
-Если contact swipe работает, а indirect scroll не работает в том же control, и доступен исходный код приложения, проверить обработку scroll events и `UIPanGestureRecognizer.allowedScrollTypesMask` (`.continuous` / `.discrete` / `.all`) по фактическому источнику ввода. Это направление диагностики, а не установленная причина по одному no-op. Apple различает эти типы событий в [TN3210](https://developer.apple.com/documentation/technotes/tn3210-optimizing-your-app-for-iphone-mirroring).
+If contact swipe works but indirect scrolling fails in the same control, and app source is available, inspect scroll-event handling and `UIPanGestureRecognizer.allowedScrollTypesMask` (`.continuous` / `.discrete` / `.all`) for the actual input source. This is a diagnostic direction, not a cause established by one no-op. Apple distinguishes these event types in [TN3210](https://developer.apple.com/documentation/technotes/tn3210-optimizing-your-app-for-iphone-mirroring).
 
-## Текст
+## Text
 
-Сначала открыть поле, наблюдением подтвердить фокус/готовность, затем вводить. Пакет «переход → typeText» может обогнать UI. Отсутствие программной клавиатуры не означает отсутствие фокуса.
+First open the field, confirm focus/readiness through observation, then type. A batch of “navigate → typeText” may outrun the UI. An absent software keyboard does not imply absent focus.
 
-Если typeText не дал видимого текста, один раз проверить обычную клавишу через pressKey в безопасном пустом черновике. В Hub отдельно проверить состояние **Capture Keyboard** по текущему AX; этот переключатель не является универсальным исправлением. Удалить диагностический символ и отменить черновик; вернуть временно изменённый Capture Keyboard в исходное состояние.
+If typeText produces no visible text, test an ordinary key once through pressKey in a safe empty draft. In Hub, separately check **Capture Keyboard** using current AX; this toggle is not a universal fix. Delete the diagnostic character and cancel the draft; restore any temporary Capture Keyboard change to its initial state.
 
-После перехода full ↔ compact заново подтвердить Capture Keyboard: смена окна может сбросить его в off. Прежнее on и баннер в другом окне не подтверждают текущую маршрутизацию. Если compact AX не показывает переключатель, проверить его в полном окне и проверить доставку клавиши в том окне, где выполняется тест.
+After switching full ↔ compact, reconfirm Capture Keyboard: changing windows may reset it to off. A previous on state and a banner in another window do not confirm current routing. If compact AX does not expose the toggle, check it in the full window and verify key delivery in the window used for the test.
 
-Различать **Keyboard Capture**, **Simulate Hardware Keyboard** и **Toggle Software Keyboard** в Device → Keyboard. Первое направляет клавиши Mac, второе моделирует подключённую аппаратную клавиатуру, третье управляет видимостью экранной. Capture off вне сценария ввода — не ошибка настройки. На затронутых версиях после отключения Hardware Keyboard экранная клавиатура может не появляться до двух минут; Apple отмечает исправление в 27.2 beta 2. Не менять текстовое поле или перезапускать AUT только из-за этого симптома.
+Distinguish **Keyboard Capture**, **Simulate Hardware Keyboard**, and **Toggle Software Keyboard** in Device → Keyboard. The first routes Mac keys, the second simulates a connected hardware keyboard, and the third controls software-keyboard visibility. Capture being off outside a text-input scenario is not a configuration error. On affected versions, the software keyboard may take up to two minutes to appear after Hardware Keyboard is disabled; Apple lists a fix in 27.2 beta 2. Do not change the text field or restart the AUT solely because of this symptom.
 
-Если обычная клавиша работает, а сочетание перехватывает Hub, проверить документированную настройку `hostKeybindingPolicy` в **container** `com.apple.dt.Devices`. Read-only: `defaults -container com.apple.dt.Devices read com.apple.dt.Devices hostKeybindingPolicy`. Отсутствующий ключ означает отсутствие явного override, не установленное значение 0. Apple описывает значения 0 (rich shortcuts), 1 (минимум при взаимодействии с устройством), 2 (minimal shortcuts). Изменение требует основания и сохранения прежнего override/его отсутствия; не применять глобально как универсальное исправление. При нескольких device windows учитывать issue `177181719` из [актуальных notes](device-hub.md#проверка-известных-проблем-по-версии).
+If an ordinary key works but Hub intercepts a shortcut, inspect the documented `hostKeybindingPolicy` setting in the `com.apple.dt.Devices` **container**. Read-only: `defaults -container com.apple.dt.Devices read com.apple.dt.Devices hostKeybindingPolicy`. A missing key means no explicit override, not an established value of 0. Apple describes values 0 (rich shortcuts), 1 (minimal while interacting with the device), and 2 (minimal shortcuts). A change requires justification and recording the previous override or its absence; do not apply it globally as a universal fix. With multiple device windows, account for issue `177181719` from the [version-specific notes](device-hub.md#checking-known-issues-by-version).
 
-`typeText`, аппаратные key events и paste — отдельные методы. Автосинхронизация clipboard не подтверждается одним успешным вводом; не переносить настройки старого Simulator на Hub. Paste проверять несекретным текстом и учитывать clipboard текущего CUA runtime.
+`typeText`, hardware key events, and paste are separate methods. A single successful input does not verify automatic clipboard synchronization; do not transfer old Simulator settings to Hub. Test paste with nonsecret text and account for the current CUA runtime's clipboard.
 
-Не считать поле неисправным по одному методу ввода. Поиск и форма редактирования могут вести себя по-разному; подтвердить результат в каждом поле.
+Do not classify a field as broken based on one input method. Search and an editing form may behave differently; confirm the result in each field.
 
-Для inline picker сначала записать исходное значение, затем наблюдать значение сразу после открытия и после выхода. Отдельной кнопки подтверждения может не быть: даже незаполненное поле способно сохранить default. Сверить это с разрешёнными тестовыми изменениями; повторный вход проверяет persistence, но сам тоже может менять данные.
+For an inline picker, first record the initial value, then observe the value immediately after opening and after leaving. There may be no separate confirmation button: even an empty field can save a default. Compare this with permitted test changes; reentering verifies persistence but may itself change data.
 
-## Запасной канал: iPhone Mirroring
+## Fallback channel: iPhone Mirroring
 
-Mirroring требует совместимых Mac/iPhone, одинакового Apple Account с 2FA, Wi‑Fi/Bluetooth, близости устройств и заблокированного iPhone. Условия и региональную доступность сверять с [Apple Support](https://support.apple.com/en-us/120421). USB сам по себе не делает Mirroring проводным. AirPlay, Sidecar и Internet Sharing могут препятствовать соединению.
+Mirroring requires compatible Mac/iPhone devices, the same Apple Account with 2FA, Wi-Fi/Bluetooth, nearby devices, and a locked iPhone. Check requirements and regional availability with [Apple Support](https://support.apple.com/en-us/120421). USB alone does not make Mirroring wired. AirPlay, Sidecar, and Internet Sharing may prevent connection.
 
-После ручного действия на телефоне владелец снова блокирует его. «iPhone используется» — состояние подключения, а не app freeze.
+After a manual action on the phone, the owner locks it again. An “iPhone in use” message indicates a connection state, not an app freeze.
 
 ```javascript
 var phone = await cua.getApp('com.apple.ScreenContinuity');
 ```
 
-После чтения документации получить screenshot отдельным вызовом. Для вертикального движения использовать поддержанный scroll:
+After reading the documentation, obtain a screenshot in a separate call. For vertical movement, use a supported scroll:
 
 ```javascript
 await phone.scroll([contentX, contentY], 'down', 1);
@@ -122,57 +122,57 @@ await phone.getAXState();
 await phone.getScreenshot();
 ```
 
-На macOS числовой distance этого API — страницы, не pixels; начать с 1 и измерять фактическое движение. Аргумент 300 не означает 300 px. Передаваемый distance может не давать линейного смещения.
+On macOS, this API's numeric distance is in pages, not pixels; start with 1 and measure the actual movement. An argument of 300 does not mean 300 px. The supplied distance may not produce linear displacement.
 
-Для горизонтальной прокрутки Mirroring сначала проверить фактический контракт API: отдельную горизонтальную ось/направление либо удержание Shift одновременно со scroll. Второй способ [описан Apple](https://support.apple.com/en-us/120421). Последовательный press/release Shift, затем scroll — другой ввод; без документированного перекрытия не заменять удержание параллельными вызовами. Если API не выражает ни горизонтальную ось, ни modifier+scroll, отметить горизонтальный ввод как недоступный этому методу. Не переносить Hub drag-рецепт на Mirroring; Hub остаётся основным каналом, но после смены нужно отдельно подтвердить ту же ось и контрольный результат по матрице.
+For horizontal scrolling in Mirroring, first check the actual API contract: a separate horizontal axis/direction or holding Shift while scrolling. The latter is [described by Apple](https://support.apple.com/en-us/120421). Sequentially pressing/releasing Shift and then scrolling is different input; without documented overlap, do not substitute parallel calls for holding the key. If the API expresses neither a horizontal axis nor modifier+scroll, record horizontal input as unavailable through that method. Do not transfer the Hub drag recipe to Mirroring; Hub remains primary, but after switching channels, separately verify the same axis and control result using the matrix.
 
-### Recovery при no-op
+### Recovery after a no-op
 
-1. Проверить свежий кадр, overlay, keyboard, Mac menu, правильный container и край списка. Контроль обратным жестом отличает конец содержимого от потери ввода.
-2. После двух no-op в корректном контейнере допускается один безопасный focus click и контрольный scroll. Если не помогло, перейти к следующему шагу.
-3. Проверить тот же метод в другом наблюдаемом контейнере того же канала: по возможности стандартном системном control с той же осью, затем исходном. Работа вертикального ввода не подтверждает горизонтальный. Успех в контрольном контейнере сужает проблему до контекста цели, общий no-op оставляет канал/фокус/API среди причин. При недоступности такого контроля записать `not-run`, не заменять его повтором прежнего действия.
-4. При признаках потери ввода в Mirroring выполнить **Home → App Switcher → та же карточка приложения**. Подтверждать каждый переход отдельно:
-   - pressKey('super+1') → AX/screenshot Home;
-   - pressKey('super+2') → AX/screenshot App Switcher;
-   - клик по актуальной карточке → AX/screenshot прежнего экрана;
-   - один scroll и обратный ход → сравнение якорей.
-5. Этот цикл возвращает приложение из background, не force-quits его. Переключение внутренних вкладок не заменяет цикл. Достаточность одного App Switcher проверяется результатом, а не предполагается.
-6. Если один цикл не восстановил ввод, сохранить evidence, проверить lock/connection. Переподключение или смену канала выполнять для конкретной проверки: например, отделить потерю всей сессии от no-op одного метода. Записать ожидаемый различающий результат и сравнить то же действие. Если новый канал не даёт иной выразимости/контроля, не повторять уже исчерпанную пробу ради самого переключения.
+1. Check a fresh frame, overlay, keyboard, Mac menu, correct container, and list boundary. A reverse gesture distinguishes the end of content from input loss.
+2. After two no-ops in the correct container, allow one safe focus click and a control scroll. If that does not help, proceed to the next step.
+3. Test the same method in another observed container on the same channel: preferably a standard system control with the same axis, then the original container. Working vertical input does not verify horizontal input. Success in the control container narrows the problem to the target's context; a general no-op leaves channel/focus/API among the possible causes. If such a control is unavailable, record `not-run` instead of replacing it with another repetition of the previous action.
+4. If Mirroring shows signs of input loss, perform **Home → App Switcher → the same app card**. Confirm each transition separately:
+   - pressKey('super+1') → AX/screenshot of Home;
+   - pressKey('super+2') → AX/screenshot of App Switcher;
+   - click the current card → AX/screenshot of the previous screen;
+   - one scroll and a reverse movement → compare anchors.
+5. This cycle brings the app back from the background without force-quitting it. Switching internal tabs does not replace the cycle. Verify whether App Switcher alone is sufficient through the result, rather than assuming it.
+6. If one cycle does not restore input, save evidence and check lock/connection state. Reconnect or change channels for a specific check, such as distinguishing loss of the entire session from a no-op in one method. Record the expected distinguishing result and compare the same action. If the new channel offers no different input capability or control, do not repeat an exhausted trial merely to switch channels.
 
-Для Hub после проверки geometry/menu/target повторить один content drag; при no-op применить тот же контроль контейнера и критерий смены канала. Каналы могут разделять Mac, iPhone, приложение и CUA, поэтому их сравнение не полностью независимо. Успешный reconnect без работающего контрольного действия не означает recovery. Не менять глобальные настройки мыши/scroll и не переустанавливать приложение без отдельного основания.
+For Hub, after checking geometry/menu/target, repeat one content drag; after a no-op, apply the same control-container check and channel-switch criterion. Channels may share the Mac, iPhone, app, and CUA, so their comparison is not fully independent. A successful reconnect without a working control action does not establish recovery. Do not change global mouse/scroll settings or reinstall the app without separate justification.
 
-### Hub: общий отказ ввода
+### Hub: total input failure
 
-Если Mac controls Hub работают и изображение видно, но обычный app click **и системный Home** не дают перехода, scroll-пробы пока не характеризуют отдельную карусель.
+If Hub's Mac controls work and the image is visible, but an ordinary app click **and system Home** produce no transition, scroll trials do not yet characterize an individual carousel.
 
-Сопоставить версию и простой с issue `182695157` / `FB23873443`: Apple отмечает исправление потери touch/button-ввода после inactivity в Xcode 27.2 beta 2. На старой версии это проверяемая гипотеза, не установленная причина; сохранить timing и контрольные результаты. См. [проверку по версии](device-hub.md#проверка-известных-проблем-по-версии).
+Compare the version and idle time with issue `182695157` / `FB23873443`: Apple lists a fix for touch/button input loss after inactivity in Xcode 27.2 beta 2. On an older version, this is a testable hypothesis, not an established cause; save timing and control results. See the [version check](device-hub.md#checking-known-issues-by-version).
 
-При доступном Computer Use агент выполняет процедуру сам, без повторного подтверждения на эти действия в рамках текущего прогона. Не ограничиваться советом пользователю, когда агент может управлять Hub. Использовать текущий контракт CUA, свежие AX/screenshot и наблюдаемые controls; после каждого действия наблюдать результат.
+When Computer Use is available, the agent performs this procedure itself, without requesting renewed confirmation for these actions within the current run. Do not stop at advice when the agent can control Hub. Use the current CUA contract, fresh AX/screenshots, and observed controls; observe the result after each action.
 
-1. Проверить target/геометрию/меню и сохранить checkpoint. Через **More Actions → Stop Screen Sharing**, затем **View Screen** один раз переподключить тот же physical target.
-2. Повторить именно неудавшийся **Home**, вернуться в приложение и проверить обычный безопасный click с видимым результатом. Если оба действия заработали, завершить recovery и продолжить прерванный маршрут.
-3. Если ввод не восстановился, проверить, что закрытие Hub не прервёт нужные чужие sessions. Выполнить обычный **Quit самого Device Hub** через меню приложения, открыть ту же копию Hub заново средствами Computer Use, выбрать прежний physical target → **View Screen**. Сохранять приложение на iPhone запущенным. Если нужно сохранить работающие симуляторы и доступен **Quit and Keep Simulators Running**, использовать этот пункт. При конкретном риске для чужой активной сессии остановить relaunch и сообщить blocker.
-4. Снова проверить Home и обычный click. Recovery подтверждён только видимыми переходами обоих controls. При прежнем no-op сохранить blocker, не зацикливать relaunch; выбрать другой подготовленный канал, если он подходит задаче.
-5. После recovery отдельно проверить нужный horizontal input из наблюдаемой средней позиции. Восстановленный Home/click не доказывает точность drag или поддержку wheel.
+1. Verify target/geometry/menus and save a checkpoint. Through **More Actions → Stop Screen Sharing**, then **View Screen**, reconnect the same physical target once.
+2. Repeat the exact failed **Home** action, return to the app, and test an ordinary safe click with a visible result. If both actions work, finish recovery and continue the interrupted route.
+3. If input is still unavailable, check that closing Hub will not interrupt other people's needed sessions. Perform a normal **Quit of Device Hub itself** through the app menu, reopen the same Hub copy through Computer Use, and select the previous physical target → **View Screen**. Keep the app running on the iPhone. If running simulators must be preserved and **Quit and Keep Simulators Running** is available, use it. If another active session faces a specific risk, stop the relaunch and report the blocker.
+4. Test Home and an ordinary click again. Recovery is confirmed only by visible transitions for both controls. If they remain no-ops, save the blocker and do not loop relaunches; choose another prepared channel if it suits the task.
+5. After recovery, separately test the required horizontal input from an observed middle position. Restored Home/click input does not prove drag precision or wheel support.
 
-Если Computer Use отсутствует, недоступен в текущей сессии или не позволяет наблюдать/управлять Hub, прямо объяснить ограничение и передать пользователю **только ещё не выполненные шаги**. Для полностью ручного восстановления использовать инструкцию:
+If Computer Use is absent, unavailable in the current session, or cannot observe/control Hub, explain the limitation directly and give the user **only the steps not yet completed**. For fully manual recovery, use this instruction:
 
-> Сейчас я не могу управлять Device Hub через Computer Use: <конкретная причина>. Выполните, пожалуйста: More Actions (…) → Stop Screen Sharing → выберите тот же iPhone → View Screen. Проверьте Home и обычное нажатие в приложении. Если не помогло, полностью закройте Device Hub через меню приложения, откройте его снова и повторите подключение и проверку. Сообщите, заработали ли оба действия.
+> I cannot currently control Device Hub through Computer Use: <specific reason>. Please perform: More Actions (…) → Stop Screen Sharing → select the same iPhone → View Screen. Test Home and an ordinary tap in the app. If that does not help, quit Device Hub completely through the app menu, reopen it, and repeat the connection and checks. Report whether both actions now work.
 
-Не просить повторять уже исчерпанный reconnect/relaunch только из-за недоступности CUA. Если нужен лишь unlock Mac/iPhone, запросить именно его по разделу ниже. После ручного восстановления при возвращении Computer Use получить свежие AX/screenshot и подтвердить тот же ввод. Если инструмента всё ещё нет, результат владельца записать как `reported-by-user`, самостоятельную проверку — `not-run`, а зависимый UI-маршрут оставить blocked. Сохранять checkpoint для продолжения.
+Do not ask the user to repeat an exhausted reconnect/relaunch solely because CUA is unavailable. If only a Mac/iPhone unlock is needed, request that specific action using the section below. When Computer Use returns after manual recovery, obtain fresh AX/screenshots and verify the same input. If the tool is still unavailable, record the owner's result as `reported-by-user`, autonomous verification as `not-run`, and leave the dependent UI route blocked. Preserve the checkpoint for resuming.
 
-Это ограниченный recovery канала, не перезапуск исследуемого приложения/телефона и не установленное исправление горизонтальной инерции. Причину отказа и связь с предшествующим физическим вводом владельца устанавливать отдельными контролями.
+This is bounded channel recovery, not a restart of the app/phone under test or an established fix for horizontal inertia. Determine the cause of failure and any relationship to the owner's preceding physical input through separate controls.
 
-### Mac locked и iPhone lock screen
+### Mac locked and iPhone lock screen
 
-Ошибка CUA `Mac locked` относится к хосту; lock screen на canvas — к iPhone. Сохранить последний подтверждённый экран и незавершённое действие, запросить штатную разблокировку соответствующего устройства. После ответа владельца получить свежие AX/screenshot, сверить target/экран и геометрию, повторить именно неудавшееся контрольное действие. Recovery подтверждён его видимым результатом. Одного ответа «разблокировал» недостаточно; reconnect/reset после успешно восстановленного ввода не нужен.
+The CUA error `Mac locked` concerns the host; a lock screen on the canvas concerns the iPhone. Save the last confirmed screen and unfinished action, and request a normal unlock of the corresponding device. After the owner responds, obtain fresh AX/screenshots, verify target/screen and geometry, and repeat the exact failed control action. Its visible result confirms recovery. The owner's statement that the device is unlocked is insufficient; reconnect/reset is unnecessary after input has been successfully restored.
 
-При Screen Time/App Limits/app-blocker зафиксировать системное ограничение: работающий Home или другое приложение помогает отличить его от потери канала. Владелец снимает ограничение штатно в пределах согласованного прогона. Коды и обход защиты не входят в UI-recovery.
+For Screen Time/App Limits/an app blocker, record the system restriction: working Home input or another app helps distinguish it from channel loss. The owner removes the restriction through the normal process within the agreed run. Passcodes and bypassing protections are outside UI recovery.
 
-Relaunch, reboot, pairing reset и reinstall имеют разные последствия. Сохранить состояние и логи перед минимальным необходимым вмешательством; удаление приложения/данных не является обычным исправлением неработающего scroll.
+Relaunch, reboot, pairing reset, and reinstall have different consequences. Preserve state and logs before the minimum necessary intervention; deleting the app/data is not a routine fix for broken scrolling.
 
-## Ограничения наблюдения
+## Observation limits
 
-Camera/microphone/Face ID не считать проверенными через Mirroring. В Hub sensor apps могут мешать View Screen, отдавать пустое видео/тишину; Phone/FaceTime могут прерывать взаимодействие. Сенсорные сценарии проверять отдельно на устройстве. [Apple](https://developer.apple.com/documentation/xcode/interacting-with-your-app-in-device-hub)
+Do not consider camera/microphone/Face ID verified through Mirroring. In Hub, sensor apps may interfere with View Screen or produce blank video/silence; Phone/FaceTime may interrupt interaction. Test sensor scenarios separately on the device. [Apple](https://developer.apple.com/documentation/xcode/interacting-with-your-app-in-device-hub)
 
-Hub документирует screenshots физического устройства, но раздел встроенной записи видео относится к simulated devices. В новых CLI есть `device capture screen-record`; это не доказывает поддержку физическим iPhone. Проверять capability и фактический результат. Нативный screenshot и кадр окна CUA служат разным целям — см. [evidence.md](evidence.md). [Apple capture](https://developer.apple.com/documentation/xcode/capturing-screenshots-and-videos-from-devices)
+Hub documents physical-device screenshots, but its built-in video recording section concerns simulated devices. Newer CLIs include `device capture screen-record`; this does not prove support on a physical iPhone. Check capabilities and the actual result. A native screenshot and a CUA window frame serve different purposes; see [evidence.md](evidence.md). [Apple capture](https://developer.apple.com/documentation/xcode/capturing-screenshots-and-videos-from-devices)
